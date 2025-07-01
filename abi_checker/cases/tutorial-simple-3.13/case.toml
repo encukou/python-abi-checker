@@ -1,0 +1,2 @@
+[build-python]
+version = {min="3.10"}  # PyModule_AddObjectRef

@@ -13,12 +13,18 @@
     <dd>{{ run.get_result() }}</dd>
 </dl>
 
-<h2>stdout</h2>
+<h2>Compile log</h2>
+{{ (run.path / 'compile.log') | file_info }}
+<pre><code>
+    {{- (run.path / 'compile.log') | include_file -}}
+</code></pre>
+
+<h2>Exec stdout</h2>
 <pre><code>
     {{- (run.path / 'stdout.log') | include_file -}}
 </code></pre>
 
-<h2>stderr</h2>
+<h2>Exec stderr</h2>
 <pre><code>
     {{- (run.path / 'stderr.log') | include_file -}}
 </code></pre>

@@ -61,6 +61,8 @@ class CaseRun:
             self.case.extension_source_path,
             '-o', self.extension_module_path,
             '-fPIC',
+            stdout=self.path / 'compile.log',
+            stderr=self.path / 'compile.log',
             cwd=build.build_dir,
         )
         return self.extension_module_path
@@ -72,6 +74,7 @@ class CaseRun:
         )
         for feature in build.features:
             flags.extend(feature.cflags)
+        flags.append(f'-I{self.case.path}')
         return flags
 
     async def exec(self):

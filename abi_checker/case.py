@@ -51,7 +51,11 @@ class Case:
 
     @cached_property
     def data(self):
-        with (self.path / 'case.toml').open('rb') as file:
+        try:
+            file = (self.path / 'case.toml').open('rb')
+        except FileNotFoundError:
+            return {}
+        with file:
             return tomllib.load(file)
 
     @cached_property

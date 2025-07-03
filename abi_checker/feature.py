@@ -22,7 +22,7 @@ _FEATURES = {
     't': Feature(
         't',
         config_options=('--disable-gil',),
-        cflags=('-DPy_GIL_DISABLED',),
+        cflags=('-DPy_GIL_DISABLED=1',),
         min_version=PyVersion(3, 13),
     ),
 }

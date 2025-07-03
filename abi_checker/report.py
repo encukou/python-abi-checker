@@ -11,11 +11,11 @@ from .feature import _FEATURES
 from .pyversion import PyVersion
 
 class Report:
-    def __init__(self, root, *, commits=None, builds=None):
+    def __init__(self, root, *, commits=None):
         self.root = root
         self._commits = commits
-        self._builds = builds
-        self._cases = None
+        self._builddict = None
+        self._casedict = None
         self._runs = None
         self._rundict = {}
 
@@ -27,31 +27,41 @@ class Report:
         return self._commits
 
     async def get_builds(self):
-        if self._builds is not None:
-            return self._builds
+        if self._builddict is not None:
+            return list(self._builddict.values())
         commits = await self.get_commits()
         async with self.lock:
-            if self._builds is not None:
-                return self._builds
-            self._builds = []
+            if self._builddict is not None:
+                return list(self._builddict.values())
+            self._builddict = {}
             tasks = []
             async with asyncio.TaskGroup() as tg:
                 for commit in commits:
                     for feature in (None, *_FEATURES.values()):
                         features = (feature,) if feature else ()
                         tasks.append(tg.create_task(_make_build(
-                            self._builds, self.root, commit, features,
+                            self.root, commit, features,
                         )))
-            self._builds = [(await t) for t in tasks if (await t)]
-        return self._builds
+            self._builddict = {
+                (await t).tag: (await t)
+                for t in tasks if (await t)
+            }
+        return list(self._builddict.values())
+
+    async def get_build(self, name):
+        await self.get_builds()
+        return self._builddict[name]
 
     async def get_cases(self):
         async with self.lock:
-            if self._cases is not None:
-                return self._cases
-            cases = Cases(self.root)
-            self._cases = list(cases.values())
-        return self._cases
+            if self._casedict is not None:
+                return list(self._casedict.values())
+            self._casedict = Cases(self.root)
+        return list(self._casedict.values())
+
+    async def get_case(self, name):
+        await self.get_cases()
+        return self._casedict[name]
 
     async def get_runs(self):
         if self._runs is not None:
@@ -85,7 +95,7 @@ class Report:
         return asyncio.Lock()
 
 
-async def _make_build(result, root, commit, features):
+async def _make_build(root, commit, features):
     for feature in features:
         try:
             await feature.verify_compatibility(commit)

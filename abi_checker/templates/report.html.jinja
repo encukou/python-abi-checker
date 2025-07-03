@@ -1,13 +1,15 @@
 %% macro fmt_result(run)
-    %% if run.get_result() == RunResult.SUCCESS
-        ✅
-    %% elif run.get_result() == RunResult.SKIP
-        <span title="{{ run.exception }}">✖️</span>
-    %% elif run.get_result() == RunResult.FAILURE
-        <a href="{{ run.path }}">❌</a>
-    %% else
-        bad
-    %% endif
+    <a href="{{ run_url(run) }}">
+        %% if run.get_result() == RunResult.SUCCESS
+            ✅
+        %% elif run.get_result() == RunResult.SKIP
+            <span title="{{ run.exception }}">✖️</span>
+        %% elif run.get_result() == RunResult.FAILURE
+            ❌
+        %% else
+            bad
+        %% endif
+    </a>
 %% endmacro
 
 %% for case in report.get_cases():

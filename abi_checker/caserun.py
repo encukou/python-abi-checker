@@ -21,12 +21,12 @@ class RunResult(enum.Enum):
 class CaseRun:
     case: Case
     compile_build: Build
-    run_build: Build
+    exec_build: Build
 
     _result = None
 
     def __repr__(self):
-        return f'<CaseRun {self.case.name} comp={self.compile_build!s} run={self.run_build!s} result={self._result}>'
+        return f'<CaseRun {self.case.name} comp={self.compile_build!s} exec={self.exec_build!s} result={self._result}>'
 
     async def get_result(self):
         if self._result is not None:
@@ -35,8 +35,8 @@ class CaseRun:
             if self._result is not None:
                 return self._result
             try:
-                await self.compile(self.compile_build)
-                proc = await self.exec(self.run_build)
+                await self.compile()
+                proc = await self.exec()
             except SkipBuild as e:
                 self._result = RunResult.SKIP
                 self.exception = e
@@ -51,14 +51,11 @@ class CaseRun:
                 self.exception = None
         return self._result
 
-    async def compile(self, build):
+    async def compile(self):
+        build = self.compile_build
         await self.case.compile_build_spec.verify_compatibility(build)
         cc = await build.get_config_var('CC')
-        flags = shlex.split(
-            await build.run_pyconfig('--cflags', '--ldflags'),
-        )
-        for feature in build.features:
-            flags.extend(feature.cflags)
+        flags = await self.get_flags()
         await self.root.run_process(
             cc, *flags, '--shared',
             self.case.extension_source_path,
@@ -68,7 +65,17 @@ class CaseRun:
         )
         return self.extension_module_path
 
-    async def exec(self, build):
+    async def get_flags(self):
+        build = self.compile_build
+        flags = shlex.split(
+            await build.run_pyconfig('--cflags', '--ldflags'),
+        )
+        for feature in build.features:
+            flags.extend(feature.cflags)
+        return flags
+
+    async def exec(self):
+        build = self.exec_build
         await self.case.run_build_spec.verify_compatibility(build)
         proc = await build.run_python(
             self.case.py_script_path,
@@ -95,7 +102,7 @@ class CaseRun:
             / 'runs'
             / self.case.tag
             / self.compile_build.tag
-            / self.run_build.tag
+            / self.exec_build.tag
         )
 
     @cached_property

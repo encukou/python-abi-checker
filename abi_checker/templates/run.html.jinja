@@ -1,0 +1,45 @@
+<a href="{{ url_for('index') }}">back</a>
+
+<h1>Run</h1>
+
+<dl>
+    <dt>case</dt>
+    <dd>{{ run.case }}</dd>
+    <dt>compiled with</dt>
+    <dd>{{ run.compile_build }}</dd>
+    <dt>executed on</dt>
+    <dd>{{ run.exec_build }}</dd>
+    <dt>Result</dt>
+    <dd>{{ run.get_result() }}</dd>
+</dl>
+
+<h2>stdout</h2>
+<pre><code>
+    {{- (run.path / 'stdout.log') | include_file -}}
+</code></pre>
+
+<h2>stderr</h2>
+<pre><code>
+    {{- (run.path / 'stderr.log') | include_file -}}
+</code></pre>
+
+<h2>Exception</h2>
+{{ run.exception }}
+
+<h2>Flags</h2>
+<code>{{ run.get_flags() }}</code>
+
+<h2>Extension</h2>
+{{ run.extension_module_path | file_info }}
+
+<h2>C</h2>
+{{ run.case.extension_source_path | file_info }}
+<pre><code>
+    {{- run.case.extension_source_path | include_file -}}
+</code></pre>
+
+<h2>Python</h2>
+{{ run.case.py_script_path | file_info }}
+<pre><code>
+    {{- run.case.py_script_path | include_file -}}
+</code></pre>

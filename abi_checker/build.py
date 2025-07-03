@@ -3,7 +3,9 @@ import subprocess
 import asyncio
 import os
 
+
 from .pyversion import PyVersion
+from .commit import CPythonCommit
 
 
 LOCKS = collections.defaultdict(asyncio.Lock)
@@ -12,70 +14,68 @@ LOCKS = collections.defaultdict(asyncio.Lock)
 class Build:
     """A build of CPython"""
 
-    def __init__(self, commit, features=(), *, repo_dir, cache_dir):
+    def __init__(self, root, commit, features=()):
+        self.root = root
         self.commit = commit
         self.features = features
-        self.repo_dir = repo_dir
-        self.cache_dir = cache_dir
-        self.worktree_dir = cache_dir / f'cpython_{self.tag}'
+        self.lock = asyncio.Lock()
+        self.build_dir = root.cache_dir / f'build_{self.tag}'
+        self.config_log_path = self.build_dir / '_config.log'
+
+    _version = None
 
     @property
     def tag(self):
-        if not self.features:
-            return str(self.commit)
-        raise NotImplementedError()
+        return self.commit.name + ''.join(f.tag for f in self.features)
+
+    def __str__(self):
+        return self.tag
+
+    def __reprr__(self):
+        return f'<Build {self}>'
 
     async def run_python(self, *args, **kwargs):
         executable = await self.get_executable()
-        return await asyncio.create_subprocess_exec(executable, *args, **kwargs)
+        return await self.root.run_process(
+            executable, *args, **kwargs,
+        )
 
     async def get_executable(self):
-        executable = self.worktree_dir / 'python'
+        executable = self.build_dir / 'python'
         if executable.exists():
             return executable
         await self.configure()
-        with LOCKS[self.worktree_dir]:
+        async with self.lock:
             if executable.exists():
                 return executable
-            proc = await asyncio.create_subprocess_exec(
+            await self.root.run_process(
                 'make',
                 '-j', str(os.process_cpu_count() or 2),
-                cwd=self.worktree_dir,
+                cwd=self.build_dir,
             )
-            await proc.communicate()
-            assert proc.returncode == 0
             return executable
 
     async def configure(self):
-        if (self.worktree_dir / 'Makefile').exists():
+        makefile_path = self.build_dir / 'Makefile'
+        if makefile_path.exists():
             return
-        await self.get_worktree()
-        with LOCKS[self.worktree_dir]:
-            if (self.worktree_dir / 'Makefile').exists():
+        for feature in self.features:
+            await feature.verify_compatibility(self.commit)
+        worktree = await self.commit.get_worktree()
+        async with self.lock:
+            if makefile_path.exists():
                 return
-            proc = await asyncio.create_subprocess_exec(
-                './configure', '-C',
-                cwd=self.worktree_dir,
+            self.build_dir.mkdir(exist_ok=True)
+            config_options = []
+            for feature in self.features:
+                config_options.extend(feature.config_options)
+            await self.root.run_process(
+                worktree / 'configure',
+                *config_options,
+                stdout=self.config_log_path,
+                stderr=self.config_log_path,
+                cwd=self.build_dir,
             )
-            await proc.communicate()
-            assert proc.returncode == 0
-
-    async def get_worktree(self):
-        if self.worktree_dir.exists():
-            return self.worktree_dir
-        with LOCKS[self.worktree_dir]:
-            if self.worktree_dir.exists():
-                return self.worktree_dir
-            proc = await asyncio.create_subprocess_exec(
-                'git', 'worktree', 'add',
-                '--detach', '--checkout',
-                self.worktree_dir,
-                self.commit,
-                cwd=self.repo_dir,
-            )
-            await proc.communicate()
-            assert proc.returncode == 0
-            return self.worktree_dir
 
     async def get_config_var(self, var):
         proc = await self.run_python(
@@ -83,26 +83,23 @@ class Build:
             f'import sysconfig; print(sysconfig.get_config_var({var!r}))',
             stdout=subprocess.PIPE,
         )
-        out, err = await proc.communicate()
-        assert proc.returncode == 0
-        return out.decode().strip()
+        return proc.stdout_data.decode().strip()
 
     async def run_pyconfig(self, *args):
         proc = await self.run_python(
-            self.worktree_dir / 'python-config.py',
+            self.build_dir / 'python-config.py',
             *args,
             stdout=subprocess.PIPE,
         )
-        out, err = await proc.communicate()
-        assert proc.returncode == 0
-        return out.decode().strip()
+        return proc.stdout_data.decode().strip()
 
     async def get_version(self):
+        if self._version is not None:
+            return self._version
         proc = await self.run_python(
             '-c',
             f'import sys; print(sys.hexversion)',
             stdout=subprocess.PIPE,
         )
-        out, err = await proc.communicate()
-        assert proc.returncode == 0
-        return PyVersion.from_hex(int(out.decode().strip()))
+        self._version = PyVersion.from_hex(int(proc.stdout_data.decode()))
+        return self._version

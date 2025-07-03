@@ -1,5 +1,4 @@
 import dataclasses
-import collections
 import enum
 import re
 
@@ -30,10 +29,10 @@ version_re = re.compile(r'''
     (
         \.
         (?P<micro>\d+)
-        (
-            (?P<releaselevel>a|b|rc|f)
-            (?P<serial>\d+)
-        )?
+    )?
+    (
+        (?P<releaselevel>a|b|rc|f)
+        (?P<serial>\d+)
     )?
 ''', re.VERBOSE)
 
@@ -81,12 +80,3 @@ class PyVersion:
     @property
     def is_prerelease(self):
         return self.releaselevel != Level.FINAL
-
-
-def get_latest_branch_releases(versions):
-    versions_by_xy = collections.defaultdict(list)
-    for version in versions:
-        versions_by_xy[version.major, version.minor].append(version)
-    return sorted(
-        max(v, key=lambda v: (-v.is_prerelease, v))
-        for v in versions_by_xy.values())

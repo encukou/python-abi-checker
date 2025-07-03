@@ -3,37 +3,48 @@ from pathlib import Path
 import dataclasses
 import asyncio
 import tomllib
-import shlex
-import os
 
+from .root import Root
 from .build import Build
 from .errors import SkipBuild
 from .pyversion import PyVersion
 
 
 class Cases:
-    def __init__(self, path):
-        self.paths = {path.name: path for path in sorted(path.glob('*/'))}
+    def __init__(self, root):
+        self.root = root
+        self._paths = {
+            path.name: path
+            for path in sorted(root.case_dir.glob('*/'))
+        }
         self._cases = {}
 
     def __len__(self):
-        return len(self.paths)
+        return len(self._paths)
 
     def __iter__(self):
-        return iter(self.paths.keys())
+        return iter(self._paths.keys())
 
     def __getitem__(self, name):
         try:
             return self._cases[name]
         except KeyError:
-            case = Case(self.paths[name])
+            case = Case(self.root, self._paths[name])
             self._cases[name] = case
             return case
 
+    def values(self):
+        return [self[name] for name in self._paths]
+
 
 class Case:
-    def __init__(self, path):
+    def __init__(self, root, path):
+        self.root = root
         self.path = path
+
+    @cached_property
+    def name(self):
+        return self.path.name
 
     @cached_property
     def data(self):
@@ -62,57 +73,6 @@ class Case:
 
 
 @dataclasses.dataclass
-class CaseRun:
-    cache_dir: Path
-    case: Case
-    compile_build: Build
-    run_build: Build
-
-    async def __call__(self):
-        await self.compile(self.compile_build)
-        return await self.exec(self.run_build)
-
-    async def compile(self, build):
-        await self.case.compile_build_spec.verify_compatibility(build)
-        cc = await build.get_config_var('CC')
-        flags = await build.run_pyconfig('--cflags', '--ldflags')
-        proc = await asyncio.create_subprocess_exec(
-            cc, *shlex.split(flags), '--shared',
-            self.case.extension_source_path,
-            '-o', self.extension_module_path,
-            '-fPIC',
-            cwd=build.worktree_dir,
-        )
-        await proc.communicate()
-        assert proc.returncode == 0
-        return self.extension_module_path
-
-    async def exec(self, build):
-        await self.case.run_build_spec.verify_compatibility(build)
-        proc = await build.run_python(
-            self.case.py_script_path,
-            cwd=build.worktree_dir,
-            env={**os.environ, 'PYTHONPATH': self.path},
-        )
-        await proc.communicate()
-        assert proc.returncode == 0
-
-    @cached_property
-    def path(self):
-        return self.cache_dir / '_'.join((
-            'run',
-            self.case.tag,
-            self.compile_build.tag,
-            self.run_build.tag,
-        ))
-
-    @cached_property
-    def extension_module_path(self):
-        self.path.mkdir(exist_ok=True)
-        return self.path / 'extension.so'
-
-
-@dataclasses.dataclass
 class BuildPythonSpec():
     minimum: PyVersion = None
 
@@ -125,6 +85,5 @@ class BuildPythonSpec():
         return cls(**args)
 
     async def verify_compatibility(self, build):
-        print(self.minimum, build)
         if self.minimum and self.minimum > (await build.get_version()):
             raise SkipBuild(f'requires {self.minimum}')

@@ -1,0 +1,34 @@
+%% macro fmt_result(run)
+    %% if run.get_result() == RunResult.SUCCESS
+        ✅
+    %% elif run.get_result() == RunResult.SKIP
+        <span title="{{ run.exception }}">✖️</span>
+    %% elif run.get_result() == RunResult.FAILURE
+        <a href="{{ run.path }}">❌</a>
+    %% else
+        bad
+    %% endif
+%% endmacro
+
+%% for case in report.get_cases():
+    <table>
+        <tr>
+            <th>{{ case }}</th>
+            %% for build in report.get_builds():
+                <th>{{ build }}</th>
+            %% endfor
+        </tr>
+        %% for compile_build in report.get_builds():
+            <tr>
+                <th>{{ compile_build }}</th>
+                %% for exec_build in report.get_builds():
+                    <td>
+                        {{ fmt_result(report.get_run(
+                            case, compile_build, exec_build,
+                        )) }}
+                    </td>
+                %% endfor
+            </tr>
+        %% endfor
+    </table>
+%% endfor

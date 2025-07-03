@@ -6,7 +6,8 @@ from .pyversion import PyVersion
 @dataclasses.dataclass(frozen=True)
 class Feature:
     tag: str
-    config_options: tuple
+    config_options: tuple = ()
+    cflags: tuple = ()
     min_version: PyVersion = None
 
     async def verify_compatibility(self, commit):
@@ -21,6 +22,7 @@ _FEATURES = {
     't': Feature(
         't',
         config_options=('--disable-gil',),
+        cflags=('-DPy_GIL_DISABLED',),
         min_version=PyVersion(3, 13),
     ),
 }

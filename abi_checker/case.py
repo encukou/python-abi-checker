@@ -42,6 +42,9 @@ class Case:
         self.root = root
         self.path = path
 
+    def __str__(self):
+        return self.name
+
     @cached_property
     def name(self):
         return self.path.name

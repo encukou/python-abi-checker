@@ -31,7 +31,7 @@ class Build:
     def __str__(self):
         return self.tag
 
-    def __reprr__(self):
+    def __repr__(self):
         return f'<Build {self}>'
 
     async def run_python(self, *args, **kwargs):
@@ -53,7 +53,12 @@ class Build:
                 '-j', str(os.process_cpu_count() or 2),
                 cwd=self.build_dir,
             )
-            return executable
+            await self.root.run_process(
+                'make', 'pythoninfo',
+                stdout=self.build_dir / 'pythoninfo',
+                cwd=self.build_dir,
+            )
+        return executable
 
     async def configure(self):
         makefile_path = self.build_dir / 'Makefile'

@@ -56,11 +56,17 @@ class CPythonCommit:
         if self._version is not None:
             return self._version
         commit_hash = await self.get_commit_hash()
-        proc = await self.root.run_process(
-            'git', 'show', f'{commit_hash}:README.rst',
-            stdout=subprocess.PIPE,
-            cwd=self.root.cpython_dir,
-        )
+        for name in 'README.rst', 'README':
+            proc = await self.root.run_process(
+                'git', 'show', f'{commit_hash}:{name}',
+                stdout=subprocess.PIPE,
+                cwd=self.root.cpython_dir,
+                check=False,
+            )
+            if proc.returncode == 0:
+                break
+        else:
+            raise LookupError(f'README not found in commit {commit_hash}')
         firstline, sep, rest = proc.stdout_data.partition(b'\n')
         match = readme_re.match(firstline)
         ver_string = match['version'].decode()

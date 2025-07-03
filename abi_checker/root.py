@@ -25,6 +25,14 @@ class Root:
             case_dir=Path(args.case_dir).resolve(),
         )
 
+    @classmethod
+    def from_env(cls, env):
+        return cls(
+            cpython_dir=Path(env['CPYTHON_DIR']).resolve(),
+            cache_dir=Path('.cache').resolve(),
+            case_dir=Path(__file__, '../cases').resolve(),
+        )
+
     @cached_property
     def lock(self):
         return asyncio.Lock()

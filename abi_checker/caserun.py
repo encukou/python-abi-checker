@@ -54,9 +54,13 @@ class CaseRun:
     async def compile(self, build):
         await self.case.compile_build_spec.verify_compatibility(build)
         cc = await build.get_config_var('CC')
-        flags = await build.run_pyconfig('--cflags', '--ldflags')
+        flags = shlex.split(
+            await build.run_pyconfig('--cflags', '--ldflags'),
+        )
+        for feature in build.features:
+            flags.extend(feature.cflags)
         await self.root.run_process(
-            cc, *shlex.split(flags), '--shared',
+            cc, *flags, '--shared',
             self.case.extension_source_path,
             '-o', self.extension_module_path,
             '-fPIC',

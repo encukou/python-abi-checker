@@ -30,9 +30,12 @@ async def main(argv):
     report = Report(root)
 
     async with asyncio.TaskGroup() as tg:
-        exceptions = []
+        tasks = []
         for run in await report.get_runs():
-            result = await run.get_result()
+            tasks.append((run, tg.create_task(run.get_result())))
+        exceptions = []
+        for run, task in tasks:
+            result = await task
             print(run, result, run.exception)
             if run.exception and not isinstance(run.exception, SkipBuild):
                 exceptions.append(run.exception)

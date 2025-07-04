@@ -22,17 +22,24 @@ class CPythonCommit:
     async def get_worktree(self):
         commit_hash = await self.get_commit_hash()
         worktree_dir = self.root.cache_dir / f'cpython_{commit_hash}'
-        if worktree_dir.exists():
-            return worktree_dir
-        if worktree_dir.exists():
-            return worktree_dir
-        await self.root.run_process(
-            'git', 'worktree', 'add',
-            '--detach', '--checkout',
-            worktree_dir,
-            await self.get_commit_hash(),
-            cwd=await self.root.get_cloned_repo(),
-        )
+        for try_count in range(5):
+            if worktree_dir.exists():
+                return worktree_dir
+            proc = await self.root.run_process(
+                'git', 'worktree', 'add',
+                '--detach', '--checkout',
+                worktree_dir,
+                await self.get_commit_hash(),
+                cwd=await self.root.get_cloned_repo(),
+                check=False,
+            )
+            if proc.returncode == 0:
+                break
+            elif proc.returncode == 128:
+                # Git index is locked?
+                await asyncio.sleep(.1 * (2**try_count))
+                continue
+            assert proc.returncode == 0
         return worktree_dir
 
     @cached_task

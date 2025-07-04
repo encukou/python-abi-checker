@@ -53,7 +53,7 @@ class Report:
     async def get_compile_builds(self):
         return [
             b for b in await self.get_builds()
-            if (await b.get_version()) >= PyVersion.pack(3, 9)
+            if (await b.commit.get_version()) >= PyVersion.pack(3, 9)
         ]
 
     @cached_task

@@ -45,18 +45,16 @@ class Root:
         repo_dir = self.cache_dir / 'cpython.git'
         repo_dir.parent.mkdir(parents=True, exist_ok=True)
         if repo_dir.exists():
-            proc = await asyncio.create_subprocess_exec(
+            await self.run_process(
                 'git', 'fetch', 'origin',
                 cwd=repo_dir,
             )
         else:
-            proc = await asyncio.create_subprocess_exec(
+            await self.run_process(
                 'git', 'clone',
                 '--bare',
                 '--', self.cpython_dir, repo_dir,
             )
-        await proc.communicate()
-        assert proc.returncode == 0
 
         return repo_dir
 
@@ -75,6 +73,7 @@ class Root:
                     stderr = stdout
                 else:
                     stderr = cm.enter_context(stderr.open('wb'))
+            print('starting:', args)
             proc = await asyncio.create_subprocess_exec(
                 *args,
                 **kwargs,
@@ -82,6 +81,7 @@ class Root:
                 stderr=stderr,
             )
         stdout_data, stderr_data = await proc.communicate(input)
+        print('done    :', args)
         if check and proc.returncode != 0:
             exc = AssertionError(f'process {args} returned {proc.returncode}')
             if stdout_path:

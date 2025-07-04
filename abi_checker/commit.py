@@ -48,7 +48,11 @@ class CPythonCommit:
             'git', 'rev-parse', self.name,
             stdout=subprocess.PIPE,
             cwd=self.root.cpython_dir,
+            check=False,
         )
+        if proc.returncode == 128:
+            return '0' * 40
+        assert proc.returncode == 0
         return proc.stdout_data.strip().decode()
 
     def __hash__(self):
@@ -59,6 +63,8 @@ class CPythonCommit:
         if self._version is not None:
             return self._version
         commit_hash = await self.get_commit_hash()
+        if commit_hash == '0' * 40:
+            return PyVersion.from_hex(0)
         for name in 'README.rst', 'README':
             proc = await self.root.run_process(
                 'git', 'show', f'{commit_hash}:{name}',

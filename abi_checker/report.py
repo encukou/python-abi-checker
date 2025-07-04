@@ -27,6 +27,7 @@ class Report:
         return [
             *(await get_latest_branch_releases(self.root)),
             CPythonCommit(self.root, 'modexport-plus'),
+            CPythonCommit(self.root, 'bad'),  # should be filtered out
         ]
 
     @cached_task

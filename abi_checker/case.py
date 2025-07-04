@@ -60,11 +60,11 @@ class Case:
 
     @cached_property
     def compile_build_spec(self):
-        return BuildPythonSpec.from_dict(self.data.get('build-python', {}))
+        return BuildPythonSpec.from_dict(self.data.get('compile-python', {}))
 
     @cached_property
-    def run_build_spec(self):
-        return BuildPythonSpec.from_dict(self.data.get('build-python', {}))
+    def exec_build_spec(self):
+        return BuildPythonSpec.from_dict(self.data.get('exec-python', {}))
 
     @cached_property
     def extension_source_path(self):

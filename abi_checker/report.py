@@ -6,7 +6,7 @@ from .case import Cases
 from .util import cached_task
 from .build import Build
 from .errors import SkipBuild
-from .commit import get_tagged_commits
+from .commit import CPythonCommit, get_tagged_commits
 from .caserun import CaseRun
 from .feature import _FEATURES
 from .pyversion import PyVersion
@@ -23,7 +23,10 @@ class Report:
     async def get_commits(self):
         if self._commits is not None:
             return self._commits
-        return (await get_latest_branch_releases(self.root))[-6:]
+        return [
+            *(await get_latest_branch_releases(self.root))[-6:],
+            CPythonCommit(self.root, 'modexport-plus'),
+        ]
 
     @cached_task
     async def get_builds(self):

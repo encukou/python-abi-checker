@@ -4,13 +4,17 @@
             ✅
         %% elif run.get_result() == RunResult.SKIP
             <span title="{{ run.exception }}">✖️</span>
-        %% elif run.get_result() == RunResult.FAILURE
+        %% elif run.get_result() == RunResult.BUILD_FAILURE
+            ⛔
+        %% elif run.get_result() == RunResult.EXEC_FAILURE
             ❌
         %% else
             bad
         %% endif
     </a>
 %% endmacro
+
+<h1>ABI Checker Results</h1>
 
 %% for case in report.get_cases():
     <table>
@@ -34,3 +38,18 @@
         %% endfor
     </table>
 %% endfor
+
+<h2>Legend</h2>
+
+<dl>
+    <dt>✅</dt>
+    <dd>success</dd>
+    <dt>✖️</dt>
+    <dd>skip</dd>
+    <dt>⛔</dt>
+    <dd>build failure</dd>
+    <dt>❌</dt>
+    <dd>exec failure</dd>
+    <dt>bad</dt>
+    <dd>exception</dd>
+</dl>

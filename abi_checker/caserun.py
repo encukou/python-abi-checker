@@ -1,5 +1,6 @@
 from functools import cached_property
 import dataclasses
+import tempfile
 import asyncio
 import shlex
 import enum
@@ -14,7 +15,8 @@ from .errors import SkipBuild
 class RunResult(enum.Enum):
     SUCCESS = 'success'
     ERROR = 'error'
-    FAILURE = 'failure'
+    BUILD_FAILURE = 'build failure'
+    EXEC_FAILURE = 'exec failure'
     SKIP = 'skip'
 
 
@@ -32,8 +34,14 @@ class CaseRun:
     @cached_task
     async def get_result(self):
         try:
-            await self.compile()
+            proc = await self.compile()
+            if proc.returncode != 0:
+                self.exception = None
+                return RunResult.BUILD_FAILURE
             proc = await self.exec()
+            if proc.returncode != 0:
+                self.exception = None
+                return RunResult.EXEC_FAILURE
         except SkipBuild as e:
             self.exception = e
             return RunResult.SKIP
@@ -42,25 +50,7 @@ class CaseRun:
             return RunResult.ERROR
 
         self.exception = None
-        if proc.returncode == 0:
-            return RunResult.SUCCESS
-        return RunResult.FAILURE
-
-    async def compile(self):
-        build = self.compile_build
-        await self.case.compile_build_spec.verify_compatibility(build)
-        cc = await build.get_config_var('CC')
-        flags = await self.get_flags()
-        await self.root.run_process(
-            cc, *flags, '--shared',
-            self.case.extension_source_path,
-            '-o', self.extension_module_path,
-            '-fPIC',
-            stdout=self.path / 'compile.log',
-            stderr=self.path / 'compile.log',
-            cwd=build.build_dir,
-        )
-        return self.extension_module_path
+        return RunResult.SUCCESS
 
     @cached_task
     async def get_flags(self):
@@ -73,17 +63,37 @@ class CaseRun:
         flags.append(f'-I{self.case.path}')
         return flags
 
+    async def compile(self):
+        build = self.compile_build
+        await self.case.compile_build_spec.verify_compatibility(build)
+        cc = await build.get_config_var('CC')
+        flags = await self.get_flags()
+        self.extension_module_path.unlink(missing_ok=True)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proc = await self.root.run_process(
+                cc, *flags, '--shared',
+                self.case.extension_source_path,
+                '-o', self.extension_module_path,
+                '-fPIC',
+                stdout=self.path / 'compile.log',
+                stderr=self.path / 'compile.log',
+                cwd=tmpdir,
+                check=False,
+            )
+        return proc
+
     async def exec(self):
         build = self.exec_build
-        await self.case.run_build_spec.verify_compatibility(build)
-        proc = await build.run_python(
-            self.case.py_script_path,
-            cwd=build.build_dir,
-            stdout=self.path / 'stdout.log',
-            stderr=self.path / 'stderr.log',
-            env={**os.environ, 'PYTHONPATH': self.path},
-            check=False,
-        )
+        await self.case.exec_build_spec.verify_compatibility(build)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proc = await build.run_python(
+                self.case.py_script_path,
+                cwd=tmpdir,
+                stdout=self.path / 'stdout.log',
+                stderr=self.path / 'stderr.log',
+                env={**os.environ, 'PYTHONPATH': self.path},
+                check=False,
+            )
         return proc
 
     @cached_property

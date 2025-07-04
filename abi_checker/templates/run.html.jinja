@@ -6,9 +6,15 @@
     <dt>case</dt>
     <dd>{{ run.case }}</dd>
     <dt>compiled with</dt>
-    <dd>{{ run.compile_build }}</dd>
+    <dd>
+        {{ run.compile_build }}
+        (<code>{{ run.compile_build.commit.get_commit_hash() }}</code>)
+    </dd>
     <dt>executed on</dt>
-    <dd>{{ run.exec_build }}</dd>
+    <dd>
+        {{ run.exec_build }}
+        (<code>{{ run.exec_build.commit.get_commit_hash() }}</code>)
+    </dd>
     <dt>Result</dt>
     <dd>{{ run.get_result() }}</dd>
 </dl>

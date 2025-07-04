@@ -16,14 +16,14 @@ class Build:
         self.commit = commit
         self.features = features
         self.lock = asyncio.Lock()
-        self.build_dir = root.cache_dir / f'build_{self.tag}'
-        self.config_log_path = self.build_dir / '_config.log'
 
     _version = None
 
     @property
     def tag(self):
-        return self.commit.name + ''.join(f.tag for f in self.features)
+        if not self.features:
+            return self.commit.name
+        return self.commit.name + '~' + ''.join(f.tag for f in self.features)
 
     def __str__(self):
         return self.tag
@@ -39,7 +39,8 @@ class Build:
 
     @cached_task
     async def get_executable(self):
-        executable = self.build_dir / 'python'
+        build_dir = await self.get_build_dir()
+        executable = build_dir / 'python'
         if executable.exists():
             return executable
         await self.configure()
@@ -49,18 +50,19 @@ class Build:
             await self.root.run_process(
                 'make',
                 '-j', str(os.process_cpu_count() or 2),
-                cwd=self.build_dir,
+                cwd=build_dir,
             )
             await self.root.run_process(
                 'make', 'pythoninfo',
-                stdout=self.build_dir / 'pythoninfo',
-                cwd=self.build_dir,
+                stdout=build_dir / 'pythoninfo',
+                cwd=build_dir,
             )
         return executable
 
     @cached_task
     async def configure(self):
-        makefile_path = self.build_dir / 'Makefile'
+        build_dir = await self.get_build_dir()
+        makefile_path = build_dir / 'Makefile'
         if makefile_path.exists():
             return
         for feature in self.features:
@@ -69,17 +71,27 @@ class Build:
         async with self.lock:
             if makefile_path.exists():
                 return
-            self.build_dir.mkdir(exist_ok=True)
+            build_dir.mkdir(exist_ok=True)
             config_options = []
             for feature in self.features:
                 config_options.extend(feature.config_options)
             await self.root.run_process(
                 worktree / 'configure',
                 *config_options,
-                stdout=self.config_log_path,
-                stderr=self.config_log_path,
-                cwd=self.build_dir,
+                stdout=await self.get_config_log_path(),
+                stderr=await self.get_config_log_path(),
+                cwd=build_dir,
             )
+
+    @cached_task
+    async def get_build_dir(self):
+        chash = await self.commit.get_commit_hash()
+        return self.root.cache_dir / f'build-{self.tag}-{chash}'
+
+    @cached_task
+    async def get_config_log_path(self):
+        build_dir = await self.get_build_dir()
+        return build_dir / '_config.log'
 
     async def get_config_var(self, var):
         proc = await self.run_python(
@@ -90,8 +102,9 @@ class Build:
         return proc.stdout_data.decode().strip()
 
     async def run_pyconfig(self, *args):
+        build_dir = await self.get_build_dir()
         proc = await self.run_python(
-            self.build_dir / 'python-config.py',
+            build_dir / 'python-config.py',
             *args,
             stdout=subprocess.PIPE,
         )

@@ -1,3 +1,7 @@
+import importlib.util
+
+print(importlib.util.find_spec('extension'))
+
 import extension
 
 values = [

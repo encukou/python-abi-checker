@@ -17,25 +17,30 @@
 <h1>ABI Checker Results</h1>
 
 %% for case in report.get_cases():
+    <h2>{{ case }}</h2>
     <table>
-        <tr>
-            <th>{{ case }}</th>
-            %% for build in report.get_builds():
-                <th>{{ build }}</th>
-            %% endfor
-        </tr>
-        %% for compile_build in report.get_builds():
+        <thead>
             <tr>
-                <th>{{ compile_build }}</th>
-                %% for exec_build in report.get_builds():
-                    <td>
-                        {{ fmt_result(report.get_run(
-                            case, compile_build, exec_build,
-                        )) }}
-                    </td>
+                <th>exec →<br>↓ compile</th>
+                %% for build in report.get_builds():
+                    <th style="writing-mode:sideways-lr;">{{ build }}</th>
                 %% endfor
             </tr>
-        %% endfor
+        </thead>
+        <tbody>
+            %% for compile_build in report.get_builds():
+                <tr>
+                    <th>{{ compile_build }}</th>
+                    %% for exec_build in report.get_builds():
+                        <td>
+                            {{ fmt_result(report.get_run(
+                                case, compile_build, exec_build,
+                            )) }}
+                        </td>
+                    %% endfor
+                </tr>
+            %% endfor
+        </tbody>
     </table>
 %% endfor
 

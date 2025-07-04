@@ -11,6 +11,7 @@ from .caserun import CaseRun
 from .feature import _FEATURES
 from .pyversion import PyVersion
 
+
 class Report:
     def __init__(self, root, *, commits=None):
         self.root = root
@@ -24,7 +25,7 @@ class Report:
         if self._commits is not None:
             return self._commits
         return [
-            *(await get_latest_branch_releases(self.root))[-6:],
+            *(await get_latest_branch_releases(self.root)),
             CPythonCommit(self.root, 'modexport-plus'),
         ]
 
@@ -37,16 +38,27 @@ class Report:
         tasks = []
         async with asyncio.TaskGroup() as tg:
             for commit in commits:
+                if (await commit.get_version()) < PyVersion.pack(3, 5):
+                    continue
                 for feature in (None, *_FEATURES.values()):
                     features = (feature,) if feature else ()
                     tasks.append(tg.create_task(_make_build(
                         self.root, commit, features,
                     )))
-        self._builddict = {
-            (await t).tag: (await t)
-            for t in tasks if (await t)
-        }
+        builds = [(await t) for t in tasks]
+        self._builddict = {b.tag: b for b in builds if b}
         return list(self._builddict.values())
+
+    @cached_task
+    async def get_compile_builds(self):
+        return [
+            b for b in await self.get_builds()
+            if (await b.get_version()) >= PyVersion.pack(3, 9)
+        ]
+
+    @cached_task
+    async def get_exec_builds(self):
+        return await self.get_builds()
 
     async def get_build(self, name):
         await self.get_builds()
@@ -61,12 +73,11 @@ class Report:
 
     @cached_task
     async def get_runs(self):
-        builds = await self.get_builds()
         cases = await self.get_cases()
         _runs = []
         async with asyncio.TaskGroup() as tg:
-            for comp_build in builds:
-                for run_build in builds:
+            for comp_build in await self.get_compile_builds():
+                for run_build in await self.get_exec_builds():
                     for case in cases:
                         run = self.get_run(
                             case, comp_build, run_build)

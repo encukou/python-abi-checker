@@ -24,16 +24,16 @@
         <thead>
             <tr>
                 <th>exec →<br>↓ compile</th>
-                %% for build in report.get_builds():
+                %% for build in report.get_exec_builds():
                     <th style="writing-mode:sideways-lr;">{{ build }}</th>
                 %% endfor
             </tr>
         </thead>
         <tbody>
-            %% for compile_build in report.get_builds():
+            %% for compile_build in report.get_compile_builds():
                 <tr>
                     <th>{{ compile_build }}</th>
-                    %% for exec_build in report.get_builds():
+                    %% for exec_build in report.get_exec_builds():
                         <td>
                             {{ fmt_result(report.get_run(
                                 case, compile_build, exec_build,

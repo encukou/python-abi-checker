@@ -50,13 +50,17 @@ class Build:
             await self.root.run_process(
                 'make',
                 '-j', str(os.process_cpu_count() or 2),
+                f'B={await self.get_version()}',
+                stdout=build_dir / 'make.log',
+                stderr=build_dir / 'make.log',
                 cwd=build_dir,
             )
-            await self.root.run_process(
-                'make', 'pythoninfo',
-                stdout=build_dir / 'pythoninfo',
-                cwd=build_dir,
-            )
+            if (await self.get_version()) > PyVersion.from_hex(0x03070000):
+                await self.root.run_process(
+                    'make', 'pythoninfo',
+                    stdout=build_dir / 'pythoninfo',
+                    cwd=build_dir,
+                )
         return executable
 
     @cached_task

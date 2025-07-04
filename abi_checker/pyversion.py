@@ -60,12 +60,22 @@ class PyVersion:
 
     @classmethod
     def from_hex(cls, hexversion):
+        return cls.pack(
+            (hexversion >> 24) & 0xff,
+            (hexversion >> 16) & 0xff,
+            (hexversion >> 8) & 0xff,
+            (hexversion >> 4) & 0xf,
+            hexversion & 0xf,
+        )
+
+    @classmethod
+    def pack(cls, major, minor, micro=0, releaselevel=0, serial=0):
         return cls(
-            major = (hexversion >> 24) & 0xff,
-            minor = (hexversion >> 16) & 0xff,
-            micro = (hexversion >> 8) & 0xff,
-            releaselevel = Level.from_hex((hexversion >> 4) & 0xf),
-            serial = hexversion & 0xf,
+            major=major,
+            minor=minor,
+            micro=minor,
+            releaselevel=Level.from_hex(releaselevel),
+            serial=serial,
         )
 
     def __str__(self):

@@ -1,7 +1,30 @@
-#include <string.h>     // memset
+
+/* "PyInit_" shim for Python extension modules that use the PyModExport_* hook
+ * (as proposed in PEP 793).
+ *
+ * In *one* C file (the one that defines the PyModExport_* hook):
+ * - define FTCOMPAT_MODNAME to the name of your module
+ * - include "ft_compat.h" (after <Python.h>)
+ *
+ * There are some limitations on the slots array:
+ * - Slots added in PEP 793 (name, doc, methods, state_*, token) must come
+ *   before any other slots.
+ * - Py_mod_token, if used, must be set to `&ftcompat_token` (which is defined
+ *   in this header).
+ *
+ * Note that the shim will call your PyModExport_* hook with NULL as the "spec"
+ * argument.
+ *
+ * The shim should be ABI-compatible with Python 3.5 to 3.14 and free-threaded
+ * builds of 3.13 & 3.14, *if* compiled with opaque PyObject structs (to
+ * ensure that, for example, `Py_INCREF` calls an ABI function rather than
+ * access a PyObject member).
+ */
+
+#include <string.h>     // for memset
 
 #ifndef PyMODINIT_FUNC
-#error "This header must pe included after Python.h"
+#error "This header must be included after Python.h"
 #endif
 
 #ifndef Py_LIMITED_API
@@ -9,8 +32,10 @@
 #endif
 
 #ifndef FTCOMPAT_MODNAME
-#error "define FTCOMPAT_MODNAME before including this header"
+#error "Define FTCOMPAT_MODNAME to the name of the extension before including this header"
 #endif
+
+/* Define some PEP 793 API for Python versions that don't have it */
 
 #ifndef Py_mod_name
 #define Py_mod_name 5
@@ -25,6 +50,10 @@
 #ifndef PyMODEXPORT_FUNC
 #define PyMODEXPORT_FUNC Py_EXPORTED_SYMBOL PyModuleDef_Slot*
 #endif
+
+/* Shim structs, mirroring the stable ABI ("gil") and the
+ * 3.14 free-threaded ABI ("ft")
+ */
 
 struct ftcompat_gil_PyObject {
     alignas(Py_ssize_t) alignas(4) Py_ssize_t ob_refcnt;
@@ -79,19 +108,26 @@ struct ftcompat_ft_PyModuleDef {
     freefunc m_free;
 };
 
+/* Union to reserve space for both variants of the PyModuleDef shim */
+
 union ftcompat_PyModuleDef {
     struct ftcompat_gil_PyModuleDef def_gil;
     struct ftcompat_ft_PyModuleDef def_ft;
 };
+
+/* Helper to construct name using the user's extension module name */
 
 #define FTCOMPAT_APPEND_MODNAME3(P, M) P ## M
 #define FTCOMPAT_APPEND_MODNAME2(P, M) FTCOMPAT_APPEND_MODNAME3(P, M)
 #define FTCOMPAT_APPEND_MODNAME(PREFIX) \
     FTCOMPAT_APPEND_MODNAME2(PREFIX, FTCOMPAT_MODNAME)
 
-PyMODEXPORT_FUNC FTCOMPAT_APPEND_MODNAME(PyModExport_)(PyObject *);
+/* Forward definitions */
 
+PyMODEXPORT_FUNC FTCOMPAT_APPEND_MODNAME(PyModExport_)(PyObject *);
 PyMODINIT_FUNC FTCOMPAT_APPEND_MODNAME(PyInit_)(void);
+
+/* Static PyModuleDef (and token) */
 
 static union ftcompat_PyModuleDef ftcompat_token;
 
@@ -104,6 +140,8 @@ FTCOMPAT_APPEND_MODNAME(PyInit_)(void)
         // (PyModExport might theoretically return different data each time.)
         return PyModuleDef_Init((void*)&ftcompat_token);
     }
+
+    // Determine if we have free-threaded ABI
 
     PyObject *abiflags_str = PySys_GetObject("abiflags");  // borrowed ref
     if (!abiflags_str) {
@@ -122,6 +160,7 @@ FTCOMPAT_APPEND_MODNAME(PyInit_)(void)
 
     int freethreading_abi = strchr(abiflags, 't') != NULL;
 
+    // Check the version as well (sadly, Py_Version is quite new)
 
     PyObject *hexversion_obj = PySys_GetObject("hexversion");  // borrowed ref
     if (!abiflags_str) {
@@ -140,6 +179,8 @@ FTCOMPAT_APPEND_MODNAME(PyInit_)(void)
         PyErr_SetString(PyExc_ImportError, "PyInit_* used on Python 3.15+");
         return NULL;
     }
+
+    // Call the new export hook and construct a moduledef shim from it
 
     PyModuleDef_Slot *slot = FTCOMPAT_APPEND_MODNAME(PyModExport_)(NULL);
 
@@ -171,6 +212,11 @@ FTCOMPAT_APPEND_MODNAME(PyInit_)(void)
 #       undef COPYSLOT_CASE
         case Py_mod_token:
             // With PyInit_, the PyModuleDef is used as the token.
+            if (!copying_slots) {
+                PyErr_SetString(PyExc_SystemError,
+                                "Py_mod_token must be specified earlier");
+                goto error;
+            }
             if (slot->value != &ftcompat_token) {
                 PyErr_SetString(PyExc_SystemError,
                                 "Py_mod_token must be set to "

@@ -11,7 +11,7 @@ Example module from PEP 793, further modified for compatibility
 #include <Python.h>
 
 #define FTCOMPAT_MODNAME extension
-#include <ft_compat.h>
+#include "ft_compat.h"
 
 typedef struct {
     int value;

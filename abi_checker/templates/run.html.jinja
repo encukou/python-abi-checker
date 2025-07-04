@@ -4,7 +4,9 @@
 
 <dl>
     <dt>case</dt>
-    <dd>{{ run.case }}</dd>
+    <dd>
+        <a href="{{ case_url(run.case) }}">{{ run.case }}</a>
+    </dd>
     <dt>compiled with</dt>
     <dd>
         {{ run.compile_build }}
@@ -43,15 +45,3 @@
 
 <h2>Extension</h2>
 {{ run.extension_module_path | file_info }}
-
-<h2>C</h2>
-{{ run.case.extension_source_path | file_info }}
-<pre><code>
-    {{- run.case.extension_source_path | include_file -}}
-</code></pre>
-
-<h2>Python</h2>
-{{ run.case.py_script_path | file_info }}
-<pre><code>
-    {{- run.case.py_script_path | include_file -}}
-</code></pre>

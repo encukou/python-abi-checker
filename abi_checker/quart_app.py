@@ -26,11 +26,18 @@ def run_url(run):
         exec_build=run.exec_build.tag,
     )
 
+def case_url(case):
+    return url_for(
+        'case',
+        case=case.tag,
+    )
+
 @app.context_processor
 def jinja_globals():
     return {
         'RunResult': RunResult,
         'run_url': run_url,
+        'case_url': case_url,
     }
 
 @app.template_filter(name='include_file')
@@ -64,3 +71,8 @@ async def run(case, compile_build, exec_build):
         await report.get_build(exec_build),
     )
     return await render_template("run.html.jinja", run=run)
+
+@app.route('/cases/<case>')
+async def case(case):
+    case = await report.get_case(case)
+    return await render_template("case.html.jinja", case=case)

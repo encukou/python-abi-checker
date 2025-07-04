@@ -17,7 +17,9 @@
 <h1>ABI Checker Results</h1>
 
 %% for case in report.get_cases():
-    <h2>{{ case }}</h2>
+    <h2>
+        <a href="{{ case_url(case) }}">{{ case }}</a>
+    </h2>
     <table>
         <thead>
             <tr>

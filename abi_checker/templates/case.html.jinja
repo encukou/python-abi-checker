@@ -1,0 +1,15 @@
+<a href="{{ url_for('index') }}">back</a>
+
+<h1>{{ case }}</h1>
+
+<h2>C</h2>
+{{ case.extension_source_path | file_info }}
+<pre><code>
+    {{- case.extension_source_path | include_file -}}
+</code></pre>
+
+<h2>Python</h2>
+{{ case.py_script_path | file_info }}
+<pre><code>
+    {{- case.py_script_path | include_file -}}
+</code></pre>

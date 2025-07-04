@@ -6,6 +6,7 @@ import enum
 import os
 
 from .case import Case
+from .util import cached_task
 from .build import Build
 from .errors import SkipBuild
 
@@ -28,28 +29,22 @@ class CaseRun:
     def __repr__(self):
         return f'<CaseRun {self.case.name} comp={self.compile_build!s} exec={self.exec_build!s} result={self._result}>'
 
+    @cached_task
     async def get_result(self):
-        if self._result is not None:
-            return self._result
-        async with self.lock:
-            if self._result is not None:
-                return self._result
-            try:
-                await self.compile()
-                proc = await self.exec()
-            except SkipBuild as e:
-                self._result = RunResult.SKIP
-                self.exception = e
-            except Exception as e:
-                self._result = RunResult.ERROR
-                self.exception = e
-            else:
-                if proc.returncode == 0:
-                    self._result = RunResult.SUCCESS
-                else:
-                    self._result = RunResult.FAILURE
-                self.exception = None
-        return self._result
+        try:
+            await self.compile()
+            proc = await self.exec()
+        except SkipBuild as e:
+            self.exception = e
+            return RunResult.SKIP
+        except Exception as e:
+            self.exception = e
+            return RunResult.ERROR
+
+        self.exception = None
+        if proc.returncode == 0:
+            return RunResult.SUCCESS
+        return RunResult.FAILURE
 
     async def compile(self):
         build = self.compile_build
@@ -67,6 +62,7 @@ class CaseRun:
         )
         return self.extension_module_path
 
+    @cached_task
     async def get_flags(self):
         build = self.compile_build
         flags = shlex.split(
@@ -89,10 +85,6 @@ class CaseRun:
             check=False,
         )
         return proc
-
-    @cached_property
-    def lock(self):
-        return asyncio.Lock()
 
     @cached_property
     def root(self):

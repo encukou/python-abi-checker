@@ -3,6 +3,7 @@ import collections
 import asyncio
 
 from .case import Cases
+from .util import cached_task
 from .build import Build
 from .errors import SkipBuild
 from .commit import get_tagged_commits
@@ -15,72 +16,60 @@ class Report:
         self.root = root
         self._commits = commits
         self._builddict = None
-        self._casedict = None
-        self._runs = None
+        self._cases = Cases(self.root)
         self._rundict = {}
 
+    @cached_task
     async def get_commits(self):
-        async with self.lock:
-            if self._commits is not None:
-                return self._commits
-            self._commits = (await get_latest_branch_releases(self.root))[-6:]
-        return self._commits
+        if self._commits is not None:
+            return self._commits
+        return (await get_latest_branch_releases(self.root))[-6:]
 
+    @cached_task
     async def get_builds(self):
         if self._builddict is not None:
             return list(self._builddict.values())
         commits = await self.get_commits()
-        async with self.lock:
-            if self._builddict is not None:
-                return list(self._builddict.values())
-            self._builddict = {}
-            tasks = []
-            async with asyncio.TaskGroup() as tg:
-                for commit in commits:
-                    for feature in (None, *_FEATURES.values()):
-                        features = (feature,) if feature else ()
-                        tasks.append(tg.create_task(_make_build(
-                            self.root, commit, features,
-                        )))
-            self._builddict = {
-                (await t).tag: (await t)
-                for t in tasks if (await t)
-            }
+        self._builddict = {}
+        tasks = []
+        async with asyncio.TaskGroup() as tg:
+            for commit in commits:
+                for feature in (None, *_FEATURES.values()):
+                    features = (feature,) if feature else ()
+                    tasks.append(tg.create_task(_make_build(
+                        self.root, commit, features,
+                    )))
+        self._builddict = {
+            (await t).tag: (await t)
+            for t in tasks if (await t)
+        }
         return list(self._builddict.values())
 
     async def get_build(self, name):
         await self.get_builds()
         return self._builddict[name]
 
+    @cached_task
     async def get_cases(self):
-        async with self.lock:
-            if self._casedict is not None:
-                return list(self._casedict.values())
-            self._casedict = Cases(self.root)
-        return list(self._casedict.values())
+        return list(self._cases.values())
 
     async def get_case(self, name):
-        await self.get_cases()
-        return self._casedict[name]
+        return self._cases[name]
 
+    @cached_task
     async def get_runs(self):
-        if self._runs is not None:
-            return self._runs
         builds = await self.get_builds()
         cases = await self.get_cases()
-        async with self.lock:
-            if self._runs is not None:
-                return self._runs
-            self._runs = []
-            async with asyncio.TaskGroup() as tg:
-                for comp_build in builds:
-                    for run_build in builds:
-                        for case in cases:
-                            run = self.get_run(
-                                case, comp_build, run_build)
-                            self._runs.append(run)
-                            tg.create_task(run.get_result())
-        return self._runs
+        _runs = []
+        async with asyncio.TaskGroup() as tg:
+            for comp_build in builds:
+                for run_build in builds:
+                    for case in cases:
+                        run = self.get_run(
+                            case, comp_build, run_build)
+                        _runs.append(run)
+                        tg.create_task(run.get_result())
+        return _runs
 
     def get_run(self, *args):
         try:
@@ -89,10 +78,6 @@ class Report:
             run = CaseRun(*args)
             self._rundict[args] = run
             return run
-
-    @cached_property
-    def lock(self):
-        return asyncio.Lock()
 
 
 async def _make_build(root, commit, features):

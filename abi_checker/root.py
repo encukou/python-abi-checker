@@ -6,6 +6,7 @@ import contextlib
 import asyncio
 import types
 
+from .util import cached_task
 from .feature import _FEATURES
 
 
@@ -14,8 +15,6 @@ class Root:
     cpython_dir: Path
     cache_dir: Path
     case_dir: Path
-
-    fetched = False
 
     @classmethod
     def from_args(cls, args):
@@ -41,31 +40,25 @@ class Root:
     def _builds(self):
         return {}
 
+    @cached_task
     async def get_cloned_repo(self):
         repo_dir = self.cache_dir / 'cpython.git'
-        if self.fetched:
-            return repo_dir
-        async with self.lock:
-            if self.fetched:
-                return repo_dir
+        repo_dir.parent.mkdir(parents=True, exist_ok=True)
+        if repo_dir.exists():
+            proc = await asyncio.create_subprocess_exec(
+                'git', 'fetch', 'origin',
+                cwd=repo_dir,
+            )
+        else:
+            proc = await asyncio.create_subprocess_exec(
+                'git', 'clone',
+                '--bare',
+                '--', self.cpython_dir, repo_dir,
+            )
+        await proc.communicate()
+        assert proc.returncode == 0
 
-            repo_dir.parent.mkdir(parents=True, exist_ok=True)
-            if repo_dir.exists():
-                proc = await asyncio.create_subprocess_exec(
-                    'git', 'fetch', 'origin',
-                    cwd=repo_dir,
-                )
-            else:
-                proc = await asyncio.create_subprocess_exec(
-                    'git', 'clone',
-                    '--bare',
-                    '--', self.cpython_dir, repo_dir,
-                )
-            await proc.communicate()
-            assert proc.returncode == 0
-
-            self.fetched = True
-            return repo_dir
+        return repo_dir
 
     async def run_process(
         self, *args, check=True, input=None, stdout=None, stderr=None,

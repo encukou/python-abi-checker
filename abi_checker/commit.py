@@ -5,6 +5,7 @@ import asyncio
 import re
 
 from .root import Root
+from .util import cached_task
 from .pyversion import PyVersion
 
 readme_re = re.compile(rb"This is Python version (?P<version>[\.\da-z]+)")
@@ -17,41 +18,36 @@ class CPythonCommit:
     _commit_hash = None
     _version = None
 
+    @cached_task
     async def get_worktree(self):
         commit_hash = await self.get_commit_hash()
         worktree_dir = self.root.cache_dir / f'cpython_{commit_hash}'
         if worktree_dir.exists():
             return worktree_dir
-        async with self.lock:
-            if worktree_dir.exists():
-                return worktree_dir
-            await self.root.run_process(
-                'git', 'worktree', 'add',
-                '--detach', '--checkout',
-                worktree_dir,
-                await self.get_commit_hash(),
-                cwd=await self.root.get_cloned_repo(),
-            )
+        if worktree_dir.exists():
             return worktree_dir
+        await self.root.run_process(
+            'git', 'worktree', 'add',
+            '--detach', '--checkout',
+            worktree_dir,
+            await self.get_commit_hash(),
+            cwd=await self.root.get_cloned_repo(),
+        )
+        return worktree_dir
 
+    @cached_task
     async def get_commit_hash(self):
-        if self._commit_hash is not None:
-            return self._commit_hash
         proc = await self.root.run_process(
             'git', 'rev-parse', self.name,
             stdout=subprocess.PIPE,
             cwd=self.root.cpython_dir,
         )
-        self._commit_hash = proc.stdout_data.strip().decode()
-        return self._commit_hash
+        return proc.stdout_data.strip().decode()
 
     def __hash__(self):
         return hash(self.name)
 
-    @cached_property
-    def lock(self):
-        return asyncio.Lock()
-
+    @cached_task
     async def get_version(self):
         if self._version is not None:
             return self._version

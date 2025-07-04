@@ -3,12 +3,9 @@ import subprocess
 import asyncio
 import os
 
-
-from .pyversion import PyVersion
+from .util import cached_task
 from .commit import CPythonCommit
-
-
-LOCKS = collections.defaultdict(asyncio.Lock)
+from .pyversion import PyVersion
 
 
 class Build:
@@ -40,6 +37,7 @@ class Build:
             executable, *args, **kwargs,
         )
 
+    @cached_task
     async def get_executable(self):
         executable = self.build_dir / 'python'
         if executable.exists():
@@ -60,6 +58,7 @@ class Build:
             )
         return executable
 
+    @cached_task
     async def configure(self):
         makefile_path = self.build_dir / 'Makefile'
         if makefile_path.exists():
@@ -98,13 +97,11 @@ class Build:
         )
         return proc.stdout_data.decode().strip()
 
+    @cached_task
     async def get_version(self):
-        if self._version is not None:
-            return self._version
         proc = await self.run_python(
             '-c',
             f'import sys; print(sys.hexversion)',
             stdout=subprocess.PIPE,
         )
-        self._version = PyVersion.from_hex(int(proc.stdout_data.decode()))
-        return self._version
+        return PyVersion.from_hex(int(proc.stdout_data.decode()))

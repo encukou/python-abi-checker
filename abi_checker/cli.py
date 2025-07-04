@@ -30,28 +30,37 @@ async def main(argv):
     report = Report(root)
 
     async with asyncio.TaskGroup() as tg:
+        tg.create_task(write_report(report))
+
         tasks = []
         for run in await report.get_runs():
-            tasks.append((run, tg.create_task(run.get_result())))
+            async def task(run):
+                return run, await run.get_result()
+            tasks.append(tg.create_task(task(run)))
+
         exceptions = []
-        for run, task in tasks:
-            result = await task
+        async for task in asyncio.as_completed(tasks):
+            run, result = await task
             print(run, result, run.exception)
             if run.exception and not isinstance(run.exception, SkipBuild):
                 exceptions.append(run.exception)
         if exceptions:
             raise ExceptionGroup('Runs failed', exceptions)
 
+    await write_report(report)
+
+    print('ok')
+
+async def write_report(report):
     compile_builds = await report.get_compile_builds()
     size = max(len(str(b)) for b in compile_builds)
     for case in (await report.get_cases()):
         print(case)
         for compile_build in compile_builds:
-            print(f'{compile_build!s:>{size}}', end=':')
+            parts = []
+            parts.append(f'{compile_build!s:>{size}}: ')
             for exec_build in (await report.get_exec_builds()):
                 run = report.get_run(case, compile_build, exec_build)
                 result = await run.get_result()
-                print(result.emoji, end='')
-            print()
-
-    print('ok')
+                parts.append(result.emoji)
+            print(''.join(parts))

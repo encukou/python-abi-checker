@@ -13,11 +13,17 @@ from .errors import SkipBuild
 
 
 class RunResult(enum.Enum):
-    SUCCESS = 'success'
-    ERROR = 'error'
-    BUILD_FAILURE = 'build failure'
-    EXEC_FAILURE = 'exec failure'
-    SKIP = 'skip'
+    SUCCESS = 'success', '✅'
+    BUILD_FAILURE = 'build failure', '⛔'
+    EXEC_FAILURE = 'exec failure', '❌'
+    SKIP = 'skip', '〰️'
+    ERROR = 'error', '☠️'
+
+    def __new__(cls, value, emoji):
+        self = object.__new__(cls)
+        self._value_ = value
+        self.emoji = emoji
+        return self
 
 
 @dataclasses.dataclass

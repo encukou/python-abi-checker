@@ -39,4 +39,16 @@ async def main(argv):
         if exceptions:
             raise ExceptionGroup('Runs failed', exceptions)
 
+    compile_builds = await report.get_compile_builds()
+    size = max(len(str(b)) for b in compile_builds)
+    for case in (await report.get_cases()):
+        print(case)
+        for compile_build in compile_builds:
+            print(f'{compile_build!s:>{size}}', end=':')
+            for exec_build in (await report.get_exec_builds()):
+                run = report.get_run(case, compile_build, exec_build)
+                result = await run.get_result()
+                print(result.emoji, end='')
+            print()
+
     print('ok')

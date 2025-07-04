@@ -1,20 +1,24 @@
 %% macro fmt_result(run)
     <a href="{{ run_url(run) }}">
-        %% if run.get_result() == RunResult.SUCCESS
-            ✅
-        %% elif run.get_result() == RunResult.SKIP
-            <span title="{{ run.exception }}">✖️</span>
-        %% elif run.get_result() == RunResult.BUILD_FAILURE
-            ⛔
-        %% elif run.get_result() == RunResult.EXEC_FAILURE
-            ❌
+        %% if run.exception is defined and run.exception
+            <span title="{{ run.exception }}">
+                {{ run.get_result().emoji }}
+            </span>
         %% else
-            bad
+            {{ run.get_result().emoji }}
         %% endif
     </a>
 %% endmacro
 
-<h1>ABI Checker Results</h1>
+<h1>Python ABI Checker Results</h1>
+
+<h2>Legend</h2>
+
+<ul>
+    %% for result in RunResult
+        <li>{{ result.emoji }} {{ result.value }}</li>
+    %% endfor
+</ul>
 
 %% for case in report.get_cases():
     <h2>
@@ -45,18 +49,3 @@
         </tbody>
     </table>
 %% endfor
-
-<h2>Legend</h2>
-
-<dl>
-    <dt>✅</dt>
-    <dd>success</dd>
-    <dt>✖️</dt>
-    <dd>skip</dd>
-    <dt>⛔</dt>
-    <dd>build failure</dd>
-    <dt>❌</dt>
-    <dd>exec failure</dd>
-    <dt>bad</dt>
-    <dd>exception</dd>
-</dl>

@@ -26,5 +26,6 @@ class cached_task:
             )
         async def get_task():
             return await task
+        get_task.task = task
         cache[self.attrname] = get_task
         return get_task

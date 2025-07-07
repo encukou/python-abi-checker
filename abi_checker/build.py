@@ -1,6 +1,7 @@
 import collections
 import subprocess
 import asyncio
+import shlex
 import os
 
 from .util import cached_task
@@ -17,6 +18,7 @@ class Build:
         self.commit = commit
         self.features = features
         self.lock = asyncio.Lock()
+        self._config_vars = {}
 
     _version = None
 
@@ -114,6 +116,16 @@ class Build:
             stdout=subprocess.PIPE,
         )
         return proc.stdout_data.decode().strip()
+
+    @cached_task
+    async def get_flags(self):
+        return tuple(shlex.split(
+            await self.run_pyconfig('--cflags', '--ldflags'),
+        ))
+
+    @cached_task
+    async def get_compiler(self):
+        return await self.get_config_var('CC')
 
     @cached_task
     async def get_version(self):

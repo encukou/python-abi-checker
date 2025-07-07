@@ -24,7 +24,7 @@ socket.onmessage = function (event) {
 
 socket.onclose = function (event) {
     console.log('connection lost');
-    for (const elem of document.getElementsByTagName('updating-spinner')) {
+    for (const elem of Array(document.getElementsByTagName('updating-spinner'))) {
         elem.outerHTML = '⁉️';
     }
 }

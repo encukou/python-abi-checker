@@ -12,6 +12,10 @@
         {{ run.compile_build }}
         (<code>{{ run.compile_build.commit.get_commit_hash() }}</code>)
     </dd>
+    <dt>extension compile options</dt>
+    <dd>
+        <code>{{ run.compile_options.cflags }}</code>
+    </dd>
     <dt>executed on</dt>
     <dd>
         {{ run.exec_build }}

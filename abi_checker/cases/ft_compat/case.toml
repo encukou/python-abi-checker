@@ -1,0 +1,9 @@
+[compile-python]
+version = {min="3.5"}  # PyModuleDef_Slot
+
+[exec-python]
+version = {min="3.5"}  # PyModuleDef_Slot
+
+[limited-api]
+version = {min="3.5"}  # PyModuleDef_Slot
+required = true

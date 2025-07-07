@@ -66,6 +66,13 @@ class Report:
         return self._builddict[name]
 
     @cached_task
+    async def get_possible_compile_options(self):
+        result = set()
+        for build in await self.get_exec_builds():
+            result.update(await build.get_possible_compile_options())
+        return sorted(result)
+
+    @cached_task
     async def get_cases(self):
         return list(self._cases.values())
 
@@ -78,12 +85,13 @@ class Report:
         _runs = []
         async with asyncio.TaskGroup() as tg:
             for comp_build in await self.get_compile_builds():
-                for run_build in await self.get_exec_builds():
-                    for case in cases:
-                        run = self.get_run(
-                            case, comp_build, run_build)
-                        _runs.append(run)
-                        tg.create_task(run.get_result())
+                for comp_opts in await self.get_possible_compile_options():
+                    for run_build in await self.get_exec_builds():
+                        for case in cases:
+                            run = self.get_run(
+                                case, comp_build, comp_opts, run_build)
+                            _runs.append(run)
+                            tg.create_task(run.get_result())
         return _runs
 
     def get_run(self, *args):

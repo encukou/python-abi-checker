@@ -6,7 +6,7 @@
     %% else
         <updating-spinner
             href="{{ run_icon_url(run) }}"
-            data-run="{{ run.case.tag }}/{{ run.compile_build.tag }}/{{ run.exec_build.tag }}"
+            data-run="{{ run.case.tag }}/{{ run.compile_build.tag }}/{{ run.compile_options.tag }}/{{ run.exec_build.tag }}"
         >
             ↺
         </updating-spinner>
@@ -44,9 +44,23 @@
     <table>
         <thead>
             <tr>
-                <th>exec →<br>↓ compile</th>
+                <th rowspan="2">exec →<br>↓ compile</th>
                 %% for build in report.get_exec_builds():
-                    <th class="build-tag">{{ build }}</th>
+                    <th
+                        class="build-tag"
+                        colspan="{{ build.get_possible_compile_options() | length }}"
+                    >
+                        {{ build }}
+                    </th>
+                %% endfor
+            </tr>
+            <tr>
+                %% for build in report.get_exec_builds():
+                    %% for compile_opts in build.get_possible_compile_options():
+                        <th>
+                            {{ compile_opts }}
+                        </th>
+                    %% endfor
                 %% endfor
             </tr>
         </thead>
@@ -55,11 +69,16 @@
                 <tr>
                     <th class="build-tag">{{ compile_build }}</th>
                     %% for exec_build in report.get_exec_builds():
-                        <td>
-                            {{ fmt_result(report.get_run(
-                                case, compile_build, exec_build,
-                            )) }}
-                        </td>
+                        %% for comp_opts in exec_build.get_possible_compile_options():
+                            <td>
+                                {{ fmt_result(report.get_run(
+                                    case,
+                                    compile_build,
+                                    comp_opts,
+                                    exec_build,
+                                )) }}
+                            </td>
+                        %% endfor
                     %% endfor
                 </tr>
             %% endfor

@@ -3,3 +3,6 @@ version = {min="3.10"}  # PyModule_AddObjectRef
 
 [exec-python]
 version = {min="3.10"}  # PyModule_AddObjectRef
+
+[limited-api]
+version = {min="3.10"}  # PyModule_AddObjectRef

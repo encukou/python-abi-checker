@@ -5,6 +5,7 @@ import dataclasses
 import contextlib
 import asyncio
 import types
+import os
 
 from .util import cached_task
 from .feature import _FEATURES
@@ -33,8 +34,8 @@ class Root:
         )
 
     @cached_property
-    def lock(self):
-        return asyncio.Lock()
+    def process_semaphore(self):
+        return asyncio.Semaphore(os.process_cpu_count() or 2)
 
     @cached_property
     def _builds(self):
@@ -63,7 +64,8 @@ class Root:
         **kwargs
     ):
         stdout_path = stderr_path = None
-        with contextlib.ExitStack() as cm:
+        async with contextlib.AsyncExitStack() as cm:
+            await cm.enter_async_context(self.process_semaphore)
             if isinstance(stdout, Path):
                 stdout_path = stdout
                 stdout = cm.enter_context(stdout.open('wb'))

@@ -2,9 +2,6 @@
 Example module from PEP 793, further modified for compatibility
 */
 
-// Avoid CPython-version-specific ABI (inline functions & macros):
-#define Py_LIMITED_API 0x03090000
-
 // Require opaque PyObject (if available)
 #define Py_OPAQUE_PYOBJECT
 

@@ -6,6 +6,7 @@ import os
 from .util import cached_task
 from .commit import CPythonCommit
 from .pyversion import PyVersion
+from .compileoptions import CompileOptions
 
 
 class Build:
@@ -127,3 +128,13 @@ class Build:
             stdout=subprocess.PIPE,
         )
         return PyVersion.from_hex(int(proc.stdout_data.decode()))
+
+    @cached_task
+    async def get_possible_compile_options(self):
+        result = []
+        result.append(CompileOptions(None))
+        result.append(CompileOptions(3))
+        version = await self.commit.get_version()
+        for i in range(9, version.minor + 1):
+            result.append(CompileOptions((3<<24) | (i<<16)))
+        return result

@@ -10,6 +10,8 @@ from .case import Case
 from .util import cached_task
 from .build import Build
 from .errors import SkipBuild
+from .pyversion import PyVersion
+from .compileoptions import CompileOptions
 
 
 class RunResult(enum.Enum):
@@ -30,6 +32,7 @@ class RunResult(enum.Enum):
 class CaseRun:
     case: Case
     compile_build: Build
+    compile_options: CompileOptions
     exec_build: Build
 
     has_result = False
@@ -40,6 +43,7 @@ class CaseRun:
     @cached_task
     async def get_result(self):
         try:
+            await self.case.verify_compatibility(self)
             proc = await self.compile()
             if proc.returncode != 0:
                 self.exception = None
@@ -68,6 +72,7 @@ class CaseRun:
         flags = shlex.split(
             await build.run_pyconfig('--cflags', '--ldflags'),
         )
+        flags.extend(self.compile_options.cflags)
         for feature in build.features:
             flags.extend(feature.cflags)
         flags.append(f'-I{self.case.path}')
@@ -75,7 +80,6 @@ class CaseRun:
 
     async def compile(self):
         build = self.compile_build
-        await self.case.compile_build_spec.verify_compatibility(build)
         cc = await build.get_config_var('CC')
         flags = await self.get_flags()
         self.extension_module_path.unlink(missing_ok=True)
@@ -94,7 +98,6 @@ class CaseRun:
 
     async def exec(self):
         build = self.exec_build
-        await self.case.exec_build_spec.verify_compatibility(build)
         with tempfile.TemporaryDirectory() as tmpdir:
             proc = await build.run_python(
                 self.case.py_script_path,
@@ -117,6 +120,7 @@ class CaseRun:
             / 'runs'
             / self.case.tag
             / self.compile_build.tag
+            / self.compile_options.tag
             / self.exec_build.tag
         )
 

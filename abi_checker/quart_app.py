@@ -10,6 +10,7 @@ from markupsafe import Markup
 from .root import Root
 from .report import Report
 from .caserun import RunResult
+from .compileoptions import CompileOptions
 
 class App(Quart):
     jinja_options = dict(
@@ -25,6 +26,7 @@ def run_url(run):
         'run',
         case=run.case.tag,
         compile_build=run.compile_build.tag,
+        compile_opts=run.compile_options.tag,
         exec_build=run.exec_build.tag,
     )
 
@@ -33,6 +35,7 @@ def run_icon_url(run):
         'run_icon',
         case=run.case.tag,
         compile_build=run.compile_build.tag,
+        compile_opts=run.compile_options.tag,
         exec_build=run.exec_build.tag,
     )
 
@@ -77,20 +80,22 @@ async def index():
     await asyncio.sleep(.01)
     return await render_template("report.html.jinja", report=report)
 
-@app.route('/runs/<case>/<compile_build>/<exec_build>/')
-async def run(case, compile_build, exec_build):
+@app.route('/runs/<case>/<compile_build>/<compile_opts>/<exec_build>/')
+async def run(case, compile_build, compile_opts, exec_build):
     run = report.get_run(
         await report.get_case(case),
         await report.get_build(compile_build),
+        CompileOptions.parse(compile_opts),
         await report.get_build(exec_build),
     )
     return await render_template("run.html.jinja", run=run)
 
-@app.route('/runs/<case>/<compile_build>/<exec_build>/icon/')
-async def run_icon(case, compile_build, exec_build):
+@app.route('/runs/<case>/<compile_build>/<compile_opts>/<exec_build>/icon/')
+async def run_icon(case, compile_build, compile_opts, exec_build):
     run = report.get_run(
         await report.get_case(case),
         await report.get_build(compile_build),
+        CompileOptions.parse(compile_opts),
         await report.get_build(exec_build),
     )
     return await render_template("run-icon.html.jinja", run=run)
@@ -106,10 +111,11 @@ async def ws():
     async with asyncio.TaskGroup() as tg:
         while True:
             tag = await websocket.receive()
-            case, compile_build, exec_build = tag.split('/')
+            case, compile_build, compile_opts, exec_build = tag.split('/')
             run = report.get_run(
                 await report.get_case(case),
                 await report.get_build(compile_build),
+                CompileOptions.parse(compile_opts),
                 await report.get_build(exec_build),
             )
             async def respond(run, tag):

@@ -60,7 +60,9 @@ async def write_report(report):
             parts = []
             parts.append(f'{compile_build!s:>{size}}: ')
             for exec_build in (await report.get_exec_builds()):
-                run = report.get_run(case, compile_build, exec_build)
-                result = await run.get_result()
-                parts.append(result.emoji)
+                for comp_opts in (await exec_build.get_possible_compile_options()):
+                    run = report.get_run(
+                        case, compile_build, comp_opts, exec_build)
+                    result = await run.get_result()
+                    parts.append(result.emoji)
             print(''.join(parts))

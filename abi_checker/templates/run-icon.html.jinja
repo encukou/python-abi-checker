@@ -1,0 +1,11 @@
+%% if run.exception is defined and run.exception
+    <a href="{{ run_url(run) }}">
+        <span title="{{ run.exception }}">
+            {{ run.get_result().emoji }}
+        </span>
+    </a>
+%% else
+    <a href="{{ run_url(run) }}">
+        {{ run.get_result().emoji }}
+    </a>
+%% endif

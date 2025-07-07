@@ -32,10 +32,10 @@ class CaseRun:
     compile_build: Build
     exec_build: Build
 
-    _result = None
+    has_result = False
 
     def __repr__(self):
-        return f'<CaseRun {self.case.name} comp={self.compile_build!s} exec={self.exec_build!s} result={self._result}>'
+        return f'<CaseRun {self.case.name} comp={self.compile_build!s} exec={self.exec_build!s}>'
 
     @cached_task
     async def get_result(self):
@@ -43,16 +43,20 @@ class CaseRun:
             proc = await self.compile()
             if proc.returncode != 0:
                 self.exception = None
+                self.has_result = True
                 return RunResult.BUILD_FAILURE
             proc = await self.exec()
             if proc.returncode != 0:
                 self.exception = None
+                self.has_result = True
                 return RunResult.EXEC_FAILURE
         except SkipBuild as e:
             self.exception = e
+            self.has_result = True
             return RunResult.SKIP
         except Exception as e:
             self.exception = e
+            self.has_result = True
             return RunResult.ERROR
 
         self.exception = None

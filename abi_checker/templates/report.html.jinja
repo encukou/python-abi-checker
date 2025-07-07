@@ -1,14 +1,29 @@
+<!DOCTYPE html>
+
 %% macro fmt_result(run)
-    <a href="{{ run_url(run) }}">
-        %% if run.exception is defined and run.exception
-            <span title="{{ run.exception }}">
-                {{ run.get_result().emoji }}
-            </span>
-        %% else
-            {{ run.get_result().emoji }}
-        %% endif
-    </a>
+    %% if run.has_result
+        {% include 'run-icon.html.jinja' with context %}
+    %% else
+        <updating-spinner
+            href="{{ run_icon_url(run) }}"
+            data-run="{{ run.case.tag }}/{{ run.compile_build.tag }}/{{ run.exec_build.tag }}"
+        >
+            ↺
+        </updating-spinner>
+    %% endif
 %% endmacro
+
+<html>
+    <head>
+        <link id="ws_url" href="{{ url_for('ws') }}" />
+        <link
+            href="{{ url_for('static', filename='style.css') }}"
+            rel="stylesheet"
+        >
+    </head>
+    <body>
+
+
 
 <h1>Python ABI Checker Results</h1>
 
@@ -18,6 +33,8 @@
     %% for result in RunResult
         <li>{{ result.emoji }} {{ result.value }}</li>
     %% endfor
+    <li>↺ Loading...
+    <li>⁉️ Update failure (check browser console & server logs)
 </ul>
 
 %% for case in report.get_cases():
@@ -29,14 +46,14 @@
             <tr>
                 <th>exec →<br>↓ compile</th>
                 %% for build in report.get_exec_builds():
-                    <th style="writing-mode:sideways-lr;">{{ build }}</th>
+                    <th class="build-tag">{{ build }}</th>
                 %% endfor
             </tr>
         </thead>
         <tbody>
             %% for compile_build in report.get_compile_builds():
                 <tr>
-                    <th>{{ compile_build }}</th>
+                    <th class="build-tag">{{ compile_build }}</th>
                     %% for exec_build in report.get_exec_builds():
                         <td>
                             {{ fmt_result(report.get_run(
@@ -49,3 +66,7 @@
         </tbody>
     </table>
 %% endfor
+
+        <script src="{{ url_for('static', filename='spinners.js') }}"></script>
+    </body>
+</html>

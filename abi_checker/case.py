@@ -81,7 +81,7 @@ class Case:
 
 @dataclasses.dataclass
 class BuildPythonSpec():
-    minimum: PyVersion = None
+    minimum: PyVersion | None = None
 
     @classmethod
     def from_dict(cls, d):

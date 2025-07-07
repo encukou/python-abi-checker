@@ -8,7 +8,7 @@ class Feature:
     tag: str
     config_options: tuple = ()
     cflags: tuple = ()
-    min_version: PyVersion = None
+    min_version: PyVersion | None = None
 
     async def verify_compatibility(self, commit):
         commit_version = await commit.get_version()

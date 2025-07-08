@@ -5,7 +5,7 @@ import sys
 
 from .root import Root
 from .report import Report
-from .errors import SkipBuild
+from .errors import ExpectFailure
 
 
 async def main(argv):
@@ -42,7 +42,7 @@ async def main(argv):
         async for task in asyncio.as_completed(tasks):
             run, result = await task
             print(run, result, run.exception)
-            if run.exception and not isinstance(run.exception, SkipBuild):
+            if run.exception and not isinstance(run.exception, ExpectFailure):
                 exceptions.append(run.exception)
         if exceptions:
             raise ExceptionGroup('Runs failed', exceptions)

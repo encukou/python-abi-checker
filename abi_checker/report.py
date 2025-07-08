@@ -105,12 +105,13 @@ class Report:
 
 
 async def _make_build(root, commit, features):
+    build = Build(root, commit, features)
     for feature in features:
         try:
-            await feature.verify_compatibility(commit)
+            await feature.verify_compatibility(build)
         except SkipBuild:
             return None
-    return Build(root, commit, features)
+    return build
 
 
 async def get_latest_branch_releases(root):

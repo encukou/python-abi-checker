@@ -28,7 +28,7 @@
 <h2>Compile log</h2>
 {{ (run.path / 'compile.log') | file_info }}
 <pre><code>
-    {{- (run.path / 'compile.log') | include_file -}}
+    {{- (run.test_module.path / 'compile.log') | include_file -}}
 </code></pre>
 
 <h2>Exec stdout</h2>
@@ -42,7 +42,13 @@
 </code></pre>
 
 <h2>Exception</h2>
-{{ run.exception }}
+%% if run.exception
+    <pre><code>
+        %%- for line in traceback.format_exception(run.exception)
+            {{- line }}
+        %%- endfor
+    </code></pre>
+%% endif
 
 <h2>Flags</h2>
 <code>{{ run.test_module.get_flags() }}</code>

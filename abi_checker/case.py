@@ -6,7 +6,6 @@ import tomllib
 
 from .root import Root
 from .build import Build
-from .errors import SkipBuild
 from .pyversion import PyVersion
 
 
@@ -50,23 +49,6 @@ class Case:
         return self.path.name
 
     @cached_property
-    def data(self):
-        try:
-            file = (self.path / 'case.toml').open('rb')
-        except FileNotFoundError:
-            return {}
-        with file:
-            return tomllib.load(file)
-
-    @cached_property
-    def compile_build_spec(self):
-        return BuildPythonSpec.from_dict(self.data.get('compile-python', {}))
-
-    @cached_property
-    def exec_build_spec(self):
-        return BuildPythonSpec.from_dict(self.data.get('exec-python', {}))
-
-    @cached_property
     def extension_source_path(self):
         return self.path / 'extension.c'
 
@@ -78,51 +60,11 @@ class Case:
     def tag(self):
         return self.path.name
 
-    async def verify_compatibility(self, run):
-        if lim := self.data.get('limited-api'):
-            if (req := lim.get('required')) is not None:
-                if req:
-                    if not run.compile_options.is_limited_api:
-                        raise SkipBuild(f'requires limited API')
-                else:
-                    if run.compile_options.is_limited_api:
-                        raise SkipBuild(f'requires non-limited API')
-            if run.compile_options.is_limited_api:
-                if (ver := lim.get('version')):
-                    spec = VersionSpec.from_dict(ver)
-                    v = PyVersion.from_hex(run.compile_options.limited_api)
-                    await spec.verify_compatibility(v)
-        await self.compile_build_spec.verify_compatibility(run.compile_build)
-        await self.exec_build_spec.verify_compatibility(run.exec_build)
-
-@dataclasses.dataclass
-class VersionSpec():
-    minimum: PyVersion | None = None
-
-    @classmethod
-    def from_dict(cls, d):
-        args = {}
-        if minimum := d.get('min'):
-            args['minimum'] = PyVersion.parse(minimum)
-        return cls(**args)
-
-    async def verify_compatibility(self, version):
-        if self.minimum and self.minimum > (version):
-            raise SkipBuild(f'requires {self.minimum}')
-
-
-@dataclasses.dataclass
-class BuildPythonSpec():
-    version_spec: VersionSpec | None = None
-
-    @classmethod
-    def from_dict(cls, d):
-        args = {}
-        if ver := d.get('version'):
-            args['version_spec'] = VersionSpec.from_dict(ver)
-        return cls(**args)
-
-    async def verify_compatibility(self, build):
-        if self.version_spec:
-            version = await build.get_version()
-            await self.version_spec.verify_compatibility(version)
+    @cached_property
+    def compatibility_script(self):
+        path = self.path / 'expected.py'
+        try:
+            content = path.read_text()
+        except FileNotFoundError:
+            return compile('', '<empty>', 'exec')
+        return compile(content, str(path), 'exec')

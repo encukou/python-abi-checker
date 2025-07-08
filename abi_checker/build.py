@@ -5,6 +5,7 @@ import shlex
 import os
 
 from .util import cached_task
+from .errors import SkipBuild
 from .commit import CPythonCommit
 from .pyversion import PyVersion
 from .compileoptions import CompileOptions
@@ -73,7 +74,7 @@ class Build:
         if makefile_path.exists():
             return
         for feature in self.features:
-            await feature.verify_compatibility(self.commit)
+            await feature.verify_compatibility(self)
         worktree = await self.commit.get_worktree()
         async with self.lock:
             if makefile_path.exists():
@@ -144,9 +145,20 @@ class Build:
     @cached_task
     async def get_possible_compile_options(self):
         result = []
-        result.append(CompileOptions(None))
-        result.append(CompileOptions(3))
         version = await self.commit.get_version()
-        for i in range(9, version.minor + 1):
-            result.append(CompileOptions((3<<24) | (i<<16)))
+        for opts in (
+            CompileOptions(None),
+            CompileOptions(3),
+            *(
+                CompileOptions((3<<24) | (i<<16))
+                for i in range(9, version.minor + 1)
+            ),
+        ):
+            try:
+                for feature in self.features:
+                    await feature.verify_option_compatibility(self, opts)
+            except SkipBuild:
+                pass
+            else:
+                result.append(opts)
         return result

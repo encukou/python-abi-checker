@@ -1,3 +1,4 @@
+import traceback
 import datetime
 import asyncio
 import json
@@ -53,6 +54,7 @@ def jinja_globals():
         'run_icon_url': run_icon_url,
         'case_url': case_url,
         'asyncio': asyncio,
+        'traceback': traceback,
     }
 
 @app.template_filter(name='include_file')

@@ -1,6 +1,9 @@
 from functools import cached_property
 import dataclasses
 
+from .pyversion import PyVersion
+
+
 @dataclasses.dataclass(frozen=True)
 class CompileOptions:
     limited_api: int | None
@@ -21,6 +24,13 @@ class CompileOptions:
     @cached_property
     def is_limited_api(self):
         return self.limited_api is not None
+
+    @cached_property
+    def limited_api_pyversion(self):
+        if self.limited_api == 3:
+            return PyVersion.pack(3, 2)
+        if self.limited_api is not None:
+            return PyVersion.from_hex(self.limited_api)
 
     @classmethod
     def parse(cls, source):

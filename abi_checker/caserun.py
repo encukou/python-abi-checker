@@ -6,7 +6,7 @@ import os
 
 from .util import cached_task
 from .build import Build
-from .errors import SkipBuild
+from .errors import ExpectFailure
 from .pyversion import PyVersion
 from .runresult import RunResult
 from .testmodule import TestModule
@@ -34,8 +34,8 @@ class CaseRun:
         if real_result == RunResult.ERROR:
             return real_result
         try:
-            await self.case.verify_compatibility(self)
-        except SkipBuild as e:
+            await self.verify_compatibility()
+        except ExpectFailure as e:
             if real_result == RunResult.SUCCESS:
                 self.exception = e
                 return RunResult.UNEXPECTED_SUCCESS
@@ -107,3 +107,17 @@ class CaseRun:
             / self.compile_options.tag
             / self.exec_build.tag
         )
+
+    @cached_task
+    async def verify_compatibility(self):
+        script = self.case.compatibility_script
+        exec(script, dict(
+            compile_version=await self.compile_build.get_version(),
+            exec_version=await self.exec_build.get_version(),
+            compile_features=[f.tag for f in self.compile_build.features],
+            exec_features=[f.tag for f in self.exec_build.features],
+            is_limited_api=self.compile_options.is_limited_api,
+            limited_api=self.compile_options.limited_api_pyversion,
+            v=PyVersion.pack,
+            ExpectFailure=ExpectFailure,
+        ))

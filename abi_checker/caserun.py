@@ -12,7 +12,6 @@ from .runresult import RunResult
 from .testmodule import TestModule
 
 
-
 @dataclasses.dataclass
 class CaseRun:
     test_module: TestModule

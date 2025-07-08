@@ -141,29 +141,10 @@ FTCOMPAT_APPEND_MODNAME(PyInit_)(void)
         return PyModuleDef_Init((void*)&ftcompat_token);
     }
 
-    // Determine if we have free-threaded ABI
-
-    PyObject *abiflags_str = PySys_GetObject("abiflags");  // borrowed ref
-    if (!abiflags_str) {
-        PyErr_SetString(PyExc_ImportError, "sys.abiflags not found");
-        return NULL;
-    }
-    PyObject *abiflags_bytes = PyUnicode_AsUTF8String(abiflags_str);
-    if (!abiflags_bytes) {
-        return NULL;
-    }
-    const char *abiflags = PyBytes_AsString(abiflags_bytes);
-    if (!abiflags) {
-        return NULL;
-    }
-    Py_DECREF(abiflags_bytes);
-
-    int freethreading_abi = strchr(abiflags, 't') != NULL;
-
-    // Check the version as well (sadly, Py_Version is quite new)
+    // Check the version (sadly, Py_Version is quite new)
 
     PyObject *hexversion_obj = PySys_GetObject("hexversion");  // borrowed ref
-    if (!abiflags_str) {
+    if (!hexversion_obj) {
         PyErr_SetString(PyExc_ImportError, "sys.hexversion not found");
         return NULL;
     }
@@ -171,12 +152,38 @@ FTCOMPAT_APPEND_MODNAME(PyInit_)(void)
     if (hexversion < 0 && PyErr_Occurred()) {
         return NULL;
     }
-    if (freethreading_abi && hexversion < 0x030d0000) {
-        PyErr_SetString(PyExc_ImportError, "'t' ABI found below Python 3.13");
-        return NULL;
-    }
     if (hexversion > 0x030f0000) {
         PyErr_SetString(PyExc_ImportError, "PyInit_* used on Python 3.15+");
+        return NULL;
+    }
+
+    // Determine if we have free-threaded ABI
+
+    PyObject *obj_size_obj = PyObject_CallMethod(Py_None, "__sizeof__", "");
+    if (!obj_size_obj) {
+        return NULL;
+    }
+    Py_ssize_t obj_size = PyLong_AsSsize_t(obj_size_obj);
+    Py_DECREF(obj_size_obj);
+
+    int freethreading_abi;
+    if (obj_size == (Py_ssize_t)sizeof(struct ftcompat_gil_PyObject)) {
+        freethreading_abi = 0;
+    }
+    else if (obj_size == (Py_ssize_t)sizeof(struct ftcompat_ft_PyObject)) {
+        freethreading_abi = 1;
+    }
+    else {
+         if (!PyErr_Occurred()) {
+            PyErr_SetString(PyExc_ImportError, "Onknown object size");
+         }
+         return NULL;
+    }
+
+    // One more safety check
+
+    if (freethreading_abi && hexversion < 0x030d0000) {
+        PyErr_SetString(PyExc_ImportError, "'t' ABI found below Python 3.13");
         return NULL;
     }
 

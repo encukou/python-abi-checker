@@ -1,7 +1,9 @@
+from functools import cached_property, total_ordering
 import dataclasses
 import enum
 import re
 
+@total_ordering
 class Level(enum.Enum):
     ALPHA = 'a'
     BETA = 'b'
@@ -20,6 +22,15 @@ class Level(enum.Enum):
             0xf: 'f',
             0: 'f',
         }[num])
+
+    @cached_property
+    def hex(self):
+        return {
+            'a': 0xa,
+            'b': 0xb,
+            'rc': 0xc,
+            'f': 0xf,
+        }[self.value]
 
 
 version_re = re.compile(r'''
@@ -66,6 +77,16 @@ class PyVersion:
             (hexversion >> 8) & 0xff,
             (hexversion >> 4) & 0xf,
             hexversion & 0xf,
+        )
+
+    @cached_property
+    def hex(self):
+        return (
+            (self.major << 24)
+            | (self.minor << 16)
+            | (self.micro << 16)
+            | (self.releaselevel.hex << 8)
+            | self.serial
         )
 
     @classmethod

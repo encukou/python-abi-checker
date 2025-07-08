@@ -6,7 +6,7 @@ import os
 
 from .util import cached_task
 from .build import Build
-from .errors import ExpectFailure
+from .errors import ExpectFailure, SkipBuild
 from .pyversion import PyVersion
 from .runresult import RunResult
 from .testmodule import TestModule
@@ -30,21 +30,28 @@ class CaseRun:
 
     @cached_task
     async def get_result(self):
+        expect_fail = None
+        try:
+            await self.verify_compatibility()
+        except SkipBuild as e:
+            self.exception = e
+            return RunResult.SKIPPED
+        except ExpectFailure as e:
+            expect_fail = e
         real_result = await self._get_real_result()
         if real_result == RunResult.ERROR:
             return real_result
         try:
-            await self.verify_compatibility()
-        except ExpectFailure as e:
-            if real_result == RunResult.SUCCESS:
-                self.exception = e
-                return RunResult.UNEXPECTED_SUCCESS
-            return RunResult.EXPECTED_FAILURE
+            if expect_fail is not None:
+                if real_result == RunResult.SUCCESS:
+                    self.exception = expect_fail
+                    return RunResult.UNEXPECTED_SUCCESS
+                return RunResult.EXPECTED_FAILURE
+            else:
+                return real_result
         except Exception as e:
             self.exception = e
-            return RunResult.ERROR
-        else:
-            return real_result
+        return RunResult.ERROR
 
     async def _get_real_result(self):
         try:
@@ -110,10 +117,14 @@ class CaseRun:
 
     @cached_task
     async def verify_compatibility(self):
+        exec_version = await self.exec_build.get_version()
+        if self.compile_options.is_limited_api:
+            if self.compile_options.limited_api >= exec_version.hex:
+                raise SkipBuild('limited API larger than exec version')
         script = self.case.compatibility_script
         exec(script, dict(
             compile_version=await self.compile_build.get_version(),
-            exec_version=await self.exec_build.get_version(),
+            exec_version=exec_version,
             compile_features=[f.tag for f in self.compile_build.features],
             exec_features=[f.tag for f in self.exec_build.features],
             is_limited_api=self.compile_options.is_limited_api,

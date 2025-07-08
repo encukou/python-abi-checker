@@ -18,8 +18,8 @@ class RunResult(enum.Enum):
     BUILD_FAILURE = 'build failure', '⛔'
     EXEC_FAILURE = 'exec failure', '❌'
     EXPECTED_FAILURE = 'expected failure', '⚪'
-    UNEXPECTED_SUCCESS = 'unexpected success', '⚠️'
-    ERROR = 'error', '☠️'
+    UNEXPECTED_SUCCESS = 'unexpected success', '🎆'
+    ERROR = 'error', '💥'
 
     def __new__(cls, value, emoji):
         self = object.__new__(cls)
@@ -34,6 +34,8 @@ class CaseRun:
     compile_build: Build
     compile_options: CompileOptions
     exec_build: Build
+
+    exception = None
 
     def __repr__(self):
         return f'<CaseRun {self.case.name} comp={self.compile_build!s} exec={self.exec_build!s}>'
@@ -60,11 +62,9 @@ class CaseRun:
         try:
             proc = await self.compile()
             if proc.returncode != 0:
-                self.exception = None
                 return RunResult.BUILD_FAILURE
             proc = await self.exec()
             if proc.returncode != 0:
-                self.exception = None
                 return RunResult.EXEC_FAILURE
         except Exception as e:
             self.exception = e

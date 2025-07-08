@@ -68,7 +68,7 @@ class Report:
     @cached_task
     async def get_possible_compile_options(self):
         result = set()
-        for build in await self.get_exec_builds():
+        for build in await self.get_compile_builds():
             result.update(await build.get_possible_compile_options())
         return sorted(result)
 
@@ -85,7 +85,7 @@ class Report:
         _runs = []
         async with asyncio.TaskGroup() as tg:
             for comp_build in await self.get_compile_builds():
-                for comp_opts in await self.get_possible_compile_options():
+                for comp_opts in await comp_build.get_possible_compile_options():
                     for run_build in await self.get_exec_builds():
                         for case in cases:
                             run = self.get_run(

@@ -44,32 +44,38 @@
     <table>
         <thead>
             <tr>
-                <th rowspan="2">exec →<br>↓ compile</th>
+                <th colspan="2">exec →<br>↓ compile</th>
                 %% for build in report.get_exec_builds():
-                    <th
-                        class="build-tag"
-                        colspan="{{ build.get_possible_compile_options() | length }}"
-                    >
+                    <th class="build-tag">
                         {{ build }}
                     </th>
-                %% endfor
-            </tr>
-            <tr>
-                %% for build in report.get_exec_builds():
-                    %% for compile_opts in build.get_possible_compile_options():
-                        <th>
-                            {{ compile_opts }}
-                        </th>
-                    %% endfor
                 %% endfor
             </tr>
         </thead>
         <tbody>
             %% for compile_build in report.get_compile_builds():
-                <tr>
-                    <th class="build-tag">{{ compile_build }}</th>
-                    %% for exec_build in report.get_exec_builds():
-                        %% for comp_opts in exec_build.get_possible_compile_options():
+                %% for comp_opts in compile_build.get_possible_compile_options():
+                    <tr
+                        %% if loop.first
+                            class="first-row"
+                        %% endif
+                    >
+                        %% if loop.first
+                            <th class="build-tag"
+                                rowspan="{{
+                                    compile_build.get_possible_compile_options()
+                                    | length
+                                }}"
+                            >
+                                {{ compile_build }}
+                            </th>
+                            %% endif
+                        <th
+                        >
+                            {{ comp_opts }}
+                        </th>
+                        {% set opts_loop = loop %}
+                        %% for exec_build in report.get_exec_builds():
                             <td>
                                 {{ fmt_result(report.get_run(
                                     case,

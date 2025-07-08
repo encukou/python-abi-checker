@@ -52,17 +52,23 @@ async def main(argv):
     print('ok')
 
 async def write_report(report):
-    compile_builds = await report.get_compile_builds()
-    size = max(len(str(b)) for b in compile_builds)
+    compile_builds = list(await report.get_compile_builds())
+    build_size = max(len(str(b)) for b in compile_builds)
+    opt_size = max(
+            len(str(comp_opts))
+            for comp_opts in (await report.get_possible_compile_options())
+    )
     for case in (await report.get_cases()):
         print(case)
         for compile_build in compile_builds:
-            parts = []
-            parts.append(f'{compile_build!s:>{size}}: ')
-            for exec_build in (await report.get_exec_builds()):
-                for comp_opts in (await exec_build.get_possible_compile_options()):
+            build_header = f'{compile_build!s:>{build_size}}'
+            for comp_opts in (await compile_build.get_possible_compile_options()):
+                parts = []
+                parts.append(f'{build_header}:{comp_opts!s:>{opt_size}}:')
+                for exec_build in (await report.get_exec_builds()):
                     run = report.get_run(
                         case, compile_build, comp_opts, exec_build)
                     result = await run.get_result()
                     parts.append(result.emoji)
-            print(''.join(parts))
+                print(''.join(parts))
+            build_header = ' ' * len(build_header)

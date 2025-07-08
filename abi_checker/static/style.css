@@ -1,7 +1,26 @@
-thead .build-tag {
-    writing-mode: sideways-lr;
+:root {
+    background-color: light-dark(white, black);
+    color: light-dark(black, white);
 }
-
+table {
+    border-collapse: collapse;
+    thead {
+        background-color: light-dark(white, black);
+        position: sticky;
+        top: 0;
+    }
+    .first-row {
+        th, td {
+            border-top: 2px solid #8888;
+        }
+    }
+    .build-tag {
+        vertical-align: top;
+        thead & {
+            writing-mode: sideways-lr;
+        }
+    }
+}
 
 @keyframes spin {
     from {

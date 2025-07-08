@@ -98,7 +98,7 @@ class Report:
         try:
             return self._rundict[args]
         except KeyError:
-            run = CaseRun(*args)
+            run = CaseRun.create(*args)
             self._rundict[args] = run
             run.get_result
             return run

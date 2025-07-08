@@ -35,7 +35,7 @@ class Root:
 
     @cached_property
     def process_semaphore(self):
-        return asyncio.Semaphore(os.process_cpu_count() or 2)
+        return asyncio.Semaphore((os.process_cpu_count() or 0) + 2)
 
     @cached_property
     def _builds(self):

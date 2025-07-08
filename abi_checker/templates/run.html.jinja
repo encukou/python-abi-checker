@@ -14,7 +14,7 @@
     </dd>
     <dt>extension compile options</dt>
     <dd>
-        <code>{{ run.compile_options.cflags }}</code>
+        <code>{{ run.test_module.compile_options.cflags }}</code>
     </dd>
     <dt>executed on</dt>
     <dd>
@@ -45,7 +45,7 @@
 {{ run.exception }}
 
 <h2>Flags</h2>
-<code>{{ run.get_flags() }}</code>
+<code>{{ run.test_module.get_flags() }}</code>
 
 <h2>Extension</h2>
 {{ run.extension_module_path | file_info }}

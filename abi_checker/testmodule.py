@@ -1,6 +1,7 @@
 from functools import cached_property
 import dataclasses
 import tempfile
+import asyncio
 
 from .case import Case
 from .util import cached_task
@@ -56,15 +57,24 @@ class TestModule:
         cc = await build.get_compiler()
         flags = await self.get_flags()
         self.extension_module_path.unlink(missing_ok=True)
-        with tempfile.TemporaryDirectory() as tmpdir:
-            proc = await self.root.run_process(
-                cc, *flags, '--shared',
-                self.case.extension_source_path,
-                '-o', self.extension_module_path,
-                '-fPIC',
-                stdout=self.path / 'compile.log',
-                stderr=self.path / 'compile.log',
-                cwd=tmpdir,
-                check=False,
-            )
+        try:
+            async with self.lock:
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    proc = await self.root.run_process(
+                        cc, *flags, '--shared',
+                        self.case.extension_source_path,
+                        '-o', self.extension_module_path,
+                        '-fPIC',
+                        stdout=self.path / 'compile.log',
+                        stderr=self.path / 'compile.log',
+                        cwd=tmpdir,
+                        check=False,
+                    )
+        except:
+            self.extension_module_path.unlink(missing_ok=True)
+            raise
         return proc
+
+    @cached_property
+    def lock(self):
+        return asyncio.Lock()

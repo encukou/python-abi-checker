@@ -39,7 +39,7 @@ class CPythonCommit:
                 # Git index is locked?
                 await asyncio.sleep(.1 * (2**try_count))
                 continue
-            assert proc.returncode == 0
+        assert proc.returncode == 0
         return worktree_dir
 
     @cached_task

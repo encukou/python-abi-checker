@@ -116,13 +116,14 @@ class CaseRun:
 
     @cached_task
     async def verify_compatibility(self):
-        exec_version = await self.exec_build.get_version()
+        exec_version = await self.exec_build.commit.get_version()
         if self.compile_options.is_limited_api:
             if self.compile_options.limited_api >= exec_version.hex:
                 raise SkipBuild('limited API larger than exec version')
         script = self.case.compatibility_script
+        compile_version = await self.compile_build.commit.get_version()
         exec(script, dict(
-            compile_version=await self.compile_build.get_version(),
+            compile_version=compile_version,
             exec_version=exec_version,
             compile_features=[f.tag for f in self.compile_build.features],
             exec_features=[f.tag for f in self.exec_build.features],

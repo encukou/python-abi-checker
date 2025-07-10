@@ -45,7 +45,7 @@ class CPythonCommit:
     @cached_task
     async def get_commit_hash(self):
         proc = await self.root.run_process(
-            'git', 'rev-parse', self.name,
+            'git', 'rev-parse', self.name + '^{commit}',
             stdout=subprocess.PIPE,
             cwd=self.root.cpython_dir,
             check=False,

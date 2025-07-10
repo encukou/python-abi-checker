@@ -84,7 +84,7 @@ class PyVersion:
         return (
             (self.major << 24)
             | (self.minor << 16)
-            | (self.micro << 16)
+            | (self.micro << 8)
             | (self.releaselevel.hex << 8)
             | self.serial
         )
@@ -94,7 +94,7 @@ class PyVersion:
         return cls(
             major=major,
             minor=minor,
-            micro=minor,
+            micro=micro,
             releaselevel=Level.from_hex(releaselevel),
             serial=serial,
         )

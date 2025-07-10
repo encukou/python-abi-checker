@@ -48,23 +48,33 @@ class Build:
         if executable.exists():
             return executable
         await self.configure()
-        async with self.lock:
-            if executable.exists():
-                return executable
-            await self.root.run_process(
-                'make',
-                '-j', str(os.process_cpu_count() or 2),
-                stdout=build_dir / 'make.log',
-                stderr=build_dir / 'make.log',
-                cwd=build_dir,
-            )
-            version = await self._get_version(executable)
-            if version > PyVersion.pack(3, 7):
+        try:
+            async with self.lock:
+                if executable.exists():
+                    return executable
                 await self.root.run_process(
-                    'make', 'pythoninfo',
-                    stdout=build_dir / 'pythoninfo',
+                    'make',
+                    '-j', str(os.process_cpu_count() or 2),
+                    stdout=build_dir / 'make.log',
+                    stderr=build_dir / 'make.log',
                     cwd=build_dir,
                 )
+                version = await self._get_version(executable)
+                if version > PyVersion.pack(3, 7):
+                    await self.root.run_process(
+                        'make', 'pythoninfo',
+                        stdout=build_dir / 'pythoninfo',
+                        cwd=build_dir,
+                    )
+                commit_version = await self.commit.get_version()
+                def vkey(version):
+                    return version.major, version.minor, version.micro
+                if vkey(version) != vkey(commit_version):
+                    raise ValueError(
+                        f'version mismatch: {version} != {commit_version}')
+        except:
+            executable.unlink(missing_ok=True)
+            raise
         return executable
 
     @cached_task

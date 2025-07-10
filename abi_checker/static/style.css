@@ -8,6 +8,7 @@ table {
         background-color: light-dark(white, black);
         position: sticky;
         top: 0;
+        z-index: 1;
     }
     .first-row {
         th, td {

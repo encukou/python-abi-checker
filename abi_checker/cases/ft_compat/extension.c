@@ -4,6 +4,7 @@ Example module from PEP 793, further modified for compatibility
 
 // Require opaque PyObject (if available)
 #define Py_OPAQUE_PYOBJECT
+#define _Py_OPAQUE_PYOBJECT
 
 #include <Python.h>
 
